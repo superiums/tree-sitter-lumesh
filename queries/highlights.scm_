@@ -1,0 +1,264 @@
+; 关键字
+[
+  "if" "else" "fn" "let" "for" "while" "match" "loop"
+  "return" "break" "use" "del" "alias" "in"
+] @keyword
+
+; 控制流关键字
+[
+  "if" "else" "match" "for" "while" "loop"
+] @keyword.control
+
+; 函数相关关键字
+[
+  "fn" "return"
+] @keyword.function
+
+; 导入导出关键字
+[
+  "use"
+] @keyword.import
+
+; 变量声明关键字
+[
+  "let" "del"
+] @keyword.storage
+
+; 操作符
+[
+  "+" "-" "*" "/" "%" "^"
+  "==" "!=" ">" "<" ">=" "<="
+  "&&" "||" "!" 
+  "=" "+=" "-=" "*=" "/=" ":="
+  "|" "|>" "<<" ">>" ">>!" "|_" "|^"
+  "->" ".." "..." "...<" "..<"
+  "~~" "~=" "~:" "!~~" "!~:"
+  "?" ":"
+] @operator
+
+; 错误处理操作符
+[
+  "?." "?+" "??" "?>" "?!" "?:"
+] @operator.error
+
+; 赋值操作符
+[
+  "=" ":=" "+=" "-=" "*=" "/="
+] @operator.assignment
+
+; 管道操作符
+[
+  "|" "|>" "<<" ">>" ">>!" "|_" "|^"
+] @operator.pipe
+
+; 比较操作符
+[
+  "==" "!=" ">" "<" ">=" "<="
+  "~~" "~=" "~:" "!~~" "!~:"
+] @operator.comparison
+
+; 逻辑操作符
+[
+  "&&" "||" "!"
+] @operator.logical
+
+; 算术操作符
+[
+  "+" "-" "*" "/" "%" "^"
+] @operator.arithmetic
+
+; 范围操作符
+[
+  ".." "..." "...<" "..<"
+] @operator.range
+
+; 字符串
+(string_literal) @string
+(string_raw) @string.special
+(string_template) @string.regexp
+
+; 数字
+(integer_literal) @number
+(float_literal) @number.float
+
+; 布尔值和特殊常量
+(boolean_literal) @constant.builtin.boolean
+(none_literal) @constant.builtin
+
+; 注释
+(comment) @comment
+
+; 标识符
+(identifier) @variable
+
+; 变量引用
+(variable) @variable.parameter
+
+; 函数定义
+(function_definition)  @function
+
+; 函数调用
+(function_call)  @function.call
+
+; Lambda 表达式参数
+(lambda_expression)  @variable.parameter
+
+(parameter)  @variable.parameter
+
+; 方法调用
+(chain_expression) @function.method
+
+; 属性访问
+; (property_access 
+;   (identifier) @property)
+
+; 控制流表达式
+(if_expression "if" @keyword.control)
+(while_expression "while" @keyword.control)
+(for_expression "for" @keyword.control)
+(loop_expression "loop" @keyword.control)
+(match_expression "match" @keyword.control)
+
+; Match 分支
+(match_arm "=>" @operator)
+
+; 集合类型
+(list) @type.builtin
+(map) @type.builtin
+
+; Map 键
+(map_entry 
+  (identifier) @property)
+(map_entry 
+  (string_literal) @property)
+
+; 标点符号
+["(" ")" "[" "]" "{" "}"] @punctuation.bracket
+["," ";" ":"] @punctuation.delimiter
+
+; 命令参数
+(argument_symbol) @string.special
+
+; 命令表达式
+(command_expression 
+  (identifier) @function.builtin)
+
+; 错误高亮
+(ERROR) @error
+
+; 特殊符号
+"@" @operator.special
+"$" @operator.special
+
+; 装饰器（如果支持）
+"@" @attribute
+
+; 类型注解（如果支持）
+":" @punctuation.delimiter
+
+; 分隔符
+"," @punctuation.delimiter
+";" @punctuation.delimiter
+
+; 字符串插值
+; (string_template 
+;   "${" @punctuation.special
+;   "}" @punctuation.special) @string.regexp
+
+; 转义序列
+; (escape_sequence) @string.escape
+
+; 文档注释（如果支持）
+; (doc_comment) @comment.documentation
+
+; 模块路径
+(use_statement 
+  (string_literal) @string.special)
+
+; 别名定义
+(alias_statement 
+  (identifier) @function)
+
+; 解构赋值
+(destructure_assignment 
+  (identifier) @variable)
+
+; 范围表达式
+(range_expression) @operator.range
+
+; 索引表达式
+(index_expression 
+  "[" @punctuation.bracket
+  "]" @punctuation.bracket)
+
+; 切片表达式
+(slice_expression 
+  "[" @punctuation.bracket
+  ":" @punctuation.delimiter
+  "]" @punctuation.bracket)
+
+; 分组表达式
+(group 
+  "(" @punctuation.bracket
+  ")" @punctuation.bracket)
+
+; 代码块
+(block 
+  "{" @punctuation.bracket
+  "}" @punctuation.bracket)
+
+; 条件表达式
+(conditional_expression 
+  "?" @operator
+  ":" @operator)
+
+; 自定义操作符
+(custom_expression) @operator.custom
+
+; 管道方法
+; (pipe_expression
+;   "." @operator
+;   (identifier) @function.method)
+
+; 链式调用
+(chain_expression
+  "." @operator
+  (identifier) @function.method)
+
+; 前缀操作符
+(unary_expression 
+  ["!" "-" "++" "--"] @operator)
+
+; 后缀操作符
+(unary_expression 
+  ["++" "--"] @operator)
+
+; 赋值表达式
+(assignment_expression 
+  (identifier) @variable
+  ["=" ":=" "+=" "-=" "*=" "/="] @operator.assignment)
+
+; 声明表达式
+(declaration 
+  "let" @keyword.storage
+  (identifier) @variable)
+
+; 返回和中断语句
+(return_statement "return" @keyword.function)
+(break_statement "break" @keyword.control)
+
+; 特殊内置函数
+((identifier) @function.builtin
+ (#match? @function.builtin "^(echo|exit|clear|cd|rm|ls|cat|grep|find)$"))
+
+; 特殊常量
+((identifier) @constant.builtin
+ (#match? @constant.builtin "^(None|True|False)$"))
+
+; 环境变量
+((variable) @variable.builtin
+ (#match? @variable.builtin "^\\$[A-Z_][A-Z0-9_]*$"))
+
+; 数字后缀（如果支持单位）
+((identifier) @type.builtin
+ (#match? @type.builtin "^(K|M|G|T|P)$"))
