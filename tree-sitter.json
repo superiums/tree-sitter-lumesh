@@ -9,7 +9,8 @@
       "file-types": ["lm", "lume", "lumesh"],
       "injection-regex": "^lume(sh)?$",
       "class-name": "TreeSitterLumesh",
-      "highlights": "queries/highlights.scm"
+      "highlights": "queries/highlights.scm",
+      "first-line-regex": "^#!.*\\b(lm|lume|lumesh)\\b.*$"
     }
   ],
   "metadata": {
