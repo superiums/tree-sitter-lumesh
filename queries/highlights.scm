@@ -105,7 +105,7 @@
 ;  name: (symbol) @function)
 
 (function_call
-  name: (symbol) @function)
+  function: (symbol) @function)
 
 (chain_expr) @_chain
 ;(chain_expr
