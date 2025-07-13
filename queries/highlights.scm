@@ -1,174 +1,256 @@
 ; Keywords
+; Control flow keywords
 [
-  "let"
-  "fn"
-  "if"
-  "else"
-  "while"
-  "for"
-  "in"
-  "loop"
-  "match"
-  "return"
-  "break"
-  "use"
-  "as"
-  "alias"
-  "del"
-] @keyword
+"if"
+"else"
+"while"
+"for"
+"loop"
+"match"
+"return"
+"break"
+] @keyword.control
+
+; Declaration keywords
+[
+"fn"
+] @keyword.function
+
+; Import/module keywords
+[
+"let"
+"use"
+"as"
+"alias"
+"del"
+] @keyword.import
+
+; Loop-specific keywords
+[
+"in"
+] @keyword.operator
 
 ; Operators
+; Assignment operators
 [
-  "="
-  ":="
-  "+="
-  "-="
-  "*="
-  "/="
-  "+"
-  "-"
-  "*"
-  "/"
-  "%"
-  "^"
-  "!"
-  "++"
-  "--"
-  "=="
-  "!="
-  ">"
-  "<"
-  ">="
-  "<="
-  "~~"
-  "~="
-  "~:"
-  "!~~"
-  "!~:"
-  "&&"
-  "||"
-  "|"
-  "|>"
-  "<<"
-  ">>"
-  ">>!"
-  "|_"
-  "|^"
-  "?."
-  "?+"
-  "??"
-  "?>"
-  "?!"
-  "?:"
-  "?"
-  ":"
-  "->"
-  "=>"
-] @operator
+"="
+":="
+"+="
+"-="
+"*="
+"/="
+] @operator.assignment
 
-; Custom operators (starting with _)
-;(custom_expr
-;  custom_op: (_) @operator)
+; Arithmetic operators
+[
+"+"
+"-"
+"*"
+"/"
+"%"
+"^"
+] @operator.arithmetic
+
+; Comparison operators
+[
+"=="
+"!="
+">"
+"<"
+">="
+"<="
+"~~"
+"~="
+"~:"
+"!~~"
+"!~:"
+] @operator.comparison
+
+; Logical operators
+[
+"&&"
+"||"
+"!"
+] @operator.logical
+
+; Pipeline operators
+[
+"|"
+"|>"
+"<<"
+">>"
+">!"
+"|_"
+"|^"
+] @operator.pipeline
+
+; Error handling operators
+[
+"?."
+"?+"
+"??"
+"?>"
+"?!"
+"?:"
+] @operator.error
+
+; Special operators
+[
+"++"
+"--"
+"?"
+":"
+"->"
+"=>"
+] @operator.special
+
 
 ; Punctuation
+; Brackets by type
 [
-  "("
-  ")"
-  "["
-  "]"
-  "{"
-  "}"
-] @punctuation.bracket
+"("
+")"
+] @punctuation.bracket.round
 
 [
-  ","
-  ";"
-  "."
-  "@"
-] @punctuation.delimiter
+"["
+"]"
+] @punctuation.bracket.square
 
-; Literals
-(integer) @number
-(float) @number
-(string) @string
-(string_raw) @string
-(string_template) @string
-(boolean) @boolean
+[
+"{"
+"}"
+] @punctuation.bracket.curly
+
+; Delimiters by context
+[
+","
+] @punctuation.separator.comma
+
+[
+";"
+] @punctuation.terminator.semicolon
+
+[
+"."
+] @punctuation.accessor.dot
+
+[
+"@"
+] @punctuation.special.at
+
+[
+"`"
+] @punctuation.definition.template
+
+
+; Built-in constants
 (none) @constant.builtin
+(boolean) @constant.builtin.boolean
 
-; Variables and symbols
-(variable) @variable
-(symbol) @variable
+; Variables with context
+(variable) @variable.builtin
+(symbol) @identifier
 
-; Function definitions and calls
-;(function_def
-;  name: (symbol) @function)
+; Function-related identifiers
+(function_def
+
+func: (symbol) @function.definition)
 
 (function_call
-  function: (symbol) @function)
 
-(chain_expr) @_chain
-;(chain_expr
-;  method: (symbol) @function.method)
+func: (symbol) @function.call)
 
-; Function parameters
-(parameter
-  name: (symbol) @variable.parameter)
+(command_expr
 
-; Control flow
-(if_expr
-  condition: (expression) @variable)
+cmd: (symbol) @function.command)
 
-(while_expr
-  condition: (expression) @variable)
+; Parameters and arguments
+(params
+
+param: (symbol) @variable.parameter)
 
 (for_expr
-  variable: (symbol) @variable.parameter
-  iterable: (expression) @variable)
 
-(match_expr
-  value: (expression) @variable)
+variable: (symbol) @variable.parameter.loop)
 
-; Comments
+; Property access
+(map_entry
+
+key: (symbol) @property.definition)
+
+(map_entry
+
+key: (string) @property.definition.string)
+
+
+; Numbers
+(integer) @number.integer
+(float) @number.float
+
+; Strings with specific types
+(string) @string.quoted.double
+(string_raw) @string.quoted.single
+(string_regex) @string.regexp
+(string_time) @string.special.time
+(string_template) @string.template
+
+; Special string contexts
+(use_statement
+
+module: (string) @string.special.path)
+
+(path_arg) @string.special.path
+
+; Module detection in various contexts
+(use_statement
+
+module: (string) @module)
+
+(chain_expr
+
+object: (symbol) @module
+
+(#match? @module "^[A-Z]"))
+
+; Regular chain expression object (non-module)
+(chain_expr
+
+object: (symbol) @variable
+
+(#not-match? @variable "^[A-Z]"))
+
+; Chain expression methods
+(chain_expr
+
+method: (symbol) @function.method)
+
+
+
+; Expression types for additional context
+(add_sub_expr) @expression.arithmetic
+(mul_div_expr) @expression.arithmetic
+(power_expr) @expression.arithmetic
+(comparison_expr) @expression.comparison
+(logical_and_expr) @expression.logical
+(logical_or_expr) @expression.logical
+(conditional_expr) @expression.conditional
+(lambda_expr) @expression.function
+(pipe_expr) @expression.pipeline
+(range_expr) @expression.range
+
+; Block structures
+(block) @structure.block
+(list) @structure.list
+(map) @structure.map
 (comment) @comment
 
-; Command expressions
-(command_expr
-  command: (symbol) @function)
 
-(argument) @string.special
+; Generic field matching for operators
+(_ operator: _ @operator)
 
-; Map entries
-(map_entry
-  key: (symbol) @property)
+; Target assignments
+(_ target: _ @variable.assignment)
 
-(map_entry
-  key: (string) @property)
-
-; Use statements
-(use_statement
-  module: (string) @string)
-
-(use_statement
-  alias: (symbol) @variable)
-
-; Alias statements
-(alias_statement
-  name: (symbol) @variable)
-
-; Range operators
-[
-  ".."
-  "..."
-  "...<"
-  "..<"
-] @operator
-
-; Output control
-[
-  "&"
-  "&-"
-  "&+"
-  "&."
-  "&?"
-] @operator
+; Function parameters
+(_ param: _ @variable.parameter)

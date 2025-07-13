@@ -10,6 +10,8 @@
       "injection-regex": "^lume(sh)?$",
       "class-name": "TreeSitterLumesh",
       "highlights": "queries/highlights.scm",
+      "locals": "queries/locals.scm",
+      "tags": "queries/tags.scm",
       "first-line-regex": "^#!.*\\b(lm|lume|lumesh)\\b.*$"
     }
   ],
