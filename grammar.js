@@ -48,7 +48,7 @@ module.exports = grammar({
     // 表达式 - 按优先级从高到低排列 (39 -> 1)
     _expression: ($) =>
       choice(
-        $.primary_expr, // 39 - 最高优先级 ==> 0
+        $._primary_expr, // 39 - 最高优先级 ==> 0
         $.group_expr, // 38 - 分组表达式
         // $.chain_expr, // 27
         $.function_call, //               ==> func:37, func_arg: 3
@@ -70,7 +70,8 @@ module.exports = grammar({
       ),
 
     // 基础表达式 (优先级 39)
-    primary_expr: ($) => choice($.symbol, $.variable, $.literal, $.list, $.map),
+    _primary_expr: ($) =>
+      choice($.symbol, $.variable, $.literal, $.list, $.map),
 
     // 分组表达式 (优先级 38)
     group_expr: ($) => prec(38, seq('(', field('content', $._expression), ')')),
@@ -254,31 +255,28 @@ module.exports = grammar({
         seq(
           field('cmd', $.symbol),
           field('arg', repeat1($.command_argument)),
-          // field(
-          //   'redirect',
-          //   optional(token(prec(38, choice('&', '&-', '&+', '&?', '&.')))),
-          // ),
+          field('redirect', optional($.stdout_ctrl)),
         ),
       ),
 
     command_argument: ($) =>
-      // prec(
-      //   9,
-      choice(
-        // $.symbol,
-        // $.variable,
-        // $.literal,
-        prec(39, $.primary_expr), // 39 - 最高优先级
-        $.group_expr, // 38 - 分组表达式
-        $._postfix_expr, // 25-30 - 后缀表达式
-        // $.unary_expr, // 20-21 - 一元表达式
-        // $.custom_expr, // 14 - 自定义操作符
-        $.power_expr, // 13 - 幂运算
-        $.mul_div_expr, // 12 - 乘除模
-        $.add_sub_expr, // 11 - 加减
-        $.argument,
+      prec.right(
+        //   9,
+        choice(
+          // $.symbol,
+          // $.variable,
+          // $.literal,
+          prec(39, $._primary_expr), // 39 - 最高优先级
+          $.group_expr, // 38 - 分组表达式
+          $._postfix_expr, // 25-30 - 后缀表达式
+          // $.unary_expr, // 20-21 - 一元表达式
+          // $.custom_expr, // 14 - 自定义操作符
+          $.power_expr, // 13 - 幂运算
+          $.mul_div_expr, // 12 - 乘除模
+          $.add_sub_expr, // 11 - 加减
+          $.path_arg,
+        ),
       ),
-    // ),
 
     // 比较表达式 (优先级 8, 左结合)
     comparison_expr: ($) =>
@@ -375,7 +373,7 @@ module.exports = grammar({
         2,
         seq(
           field('left', $._expression),
-          field('operator', choice('|', '|>', '<<', '>>', '>>!', '|_', '|^')),
+          field('operator', choice($.pipe_operator)),
           field('right', $._expression),
         ),
       ),
@@ -501,7 +499,7 @@ module.exports = grammar({
       ),
 
     // 命令参数符号
-    argument: ($) =>
+    path_arg: ($) =>
       prec(
         38,
         token(
@@ -509,21 +507,23 @@ module.exports = grammar({
             seq('--', /[a-zA-Z][a-zA-Z0-9-]*/),
             seq('-', /[a-zA-Z]/),
             /\/[^\s]*/,
-            /\.\.\//,
-            /\.\//,
+            /\.\.\/[^\s]*/,
+            /\.\/[^\s]*/,
             '.',
-            '~',
-            /\*\//,
-            /\*\*\//,
-            /\*\./,
+            /~\/[^\s]*/,
+            /\*\/[^\s]*/,
+            /\*\*\/[^\s]*/,
+            /\*\.[^\s]*/,
             /https?:\/\/[^\s]*/,
             /ftp:\/\/[^\s]*/,
             /file:\/\/[^\s]*/,
-            choice('&-', '&?', '&+', '&.'),
           ),
         ),
       ),
 
+    stdout_ctrl: ($) => prec(38, token(choice('&', '&-', '&+', '&?', '&.'))),
+    pipe_operator: ($) =>
+      token(choice('|', '|>', '|_', '|^', '<<', '>>', '>!')),
     // 声明和赋值
     declaration: ($) =>
       seq(
@@ -536,19 +536,19 @@ module.exports = grammar({
         ),
       ),
     normal_assign: ($) =>
-      seq(field('name', $.symbol), '=', field('value', $._expression)),
+      seq(field('target', $.symbol), '=', field('value', $._expression)),
     multi_assign: ($) =>
       seq(
-        field('targets', commaSep1($.symbol)),
+        field('target', commaSep1($.symbol)),
         '=',
-        field('values', commaSep1($._expression)),
+        field('value', commaSep1($._expression)),
       ),
 
     destruct_list: ($) =>
       seq(
         '[',
         field(
-          'targets',
+          'target',
           commaSep1(choice($.symbol, seq('*', field('rest', $.symbol)))),
         ),
         ']',
@@ -560,7 +560,7 @@ module.exports = grammar({
       seq(
         '{',
         field(
-          'targets',
+          'target',
           commaSep1(
             choice(
               $.symbol,
@@ -620,7 +620,7 @@ module.exports = grammar({
         field('value', $._expression),
         '{',
         optional('\n'),
-        field('arms', commaLineSep1($.match_arm)),
+        field('arm', commaLineSep1($.match_arm)),
         '}',
       ),
 
@@ -666,7 +666,7 @@ module.exports = grammar({
     use_statement: ($) =>
       seq(
         'use',
-        field('module', choice($.string, $.symbol, $.argument)),
+        field('module', choice($.string, $.symbol, $.path_arg)),
         optional(seq('as', field('alias', $.symbol))),
       ),
 
