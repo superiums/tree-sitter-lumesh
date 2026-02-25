@@ -10,51 +10,74 @@
 module.exports = grammar({
   name: 'lumesh',
   word: ($) => $.symbol,
-  extras: ($) => [/[ \t]/, /\\\n/, $.comment],
+  extras: ($) => [/[ \t]/, $.comment],
 
+  // 声明冲突解决
   conflicts: ($) => [
+    // [$.map, $.block],
+    // [$.list, $.slice_expr, $.index_expr],
+    // [$.function_call, $.lambda_params, $.group_expr],
+    // [$.range_expr, $.float],
     [$.multi_assign, $.normal_assign],
-    // [$.chain_expr, $.function_call],
     // [$.command_argument, $._expression],
-    [$.lambda_params, $._primary_expr],
-    // [$.slice_expr, $.index_expr],
-    // [$.slice_expr, $.index_expr, $.command_argument],
-    // [$.index_expr, $.command_argument],
-    // [$.index_expr, $.chain_expr, $.command_argument],
-    // [$.add_sub_expr, $.command_argument],
-    [$.control_flow, $._expression],
-    [$.map, $.block], // 新增
+    // [$.function_call, $.command_expr, $.primary_expr],
+    [$.chain_expr, $.function_call],
   ],
 
   precedences: ($) => [
-    [$.control_flow],
-    [$.group_expr],
-    [$._primary_expr],
-    [$.slice_expr],
-    [$.index_expr],
-    [$.unit_expr],
-    [$.range_expr],
-    [$.chain_expr],
-    [$.function_call],
-    [$.unary_expr],
-    [$.power_expr],
-    [$.mul_div_expr],
-    [$.add_sub_expr],
-    [$.command_argument],
-    [$.command_expr],
-    [$.comparison_expr],
-    [$.logical_and_expr],
-    [$.logical_or_expr],
-    [$.conditional_expr],
-    [$.lambda_params],
-    [$.lambda_expr],
-    [$.catch_expr],
-    [$.pipe_expr],
-    [$.assign_expr],
-  ],
+    [
+      $.group_expr, // 38 - 分组表达式
+      $.chain_expr, // 27
+      $.function_call, //               ==> func:37, func_arg: 3
+      $._postfix_expr, // 25-30 - 后缀表达式
+      $.unary_expr, // 20-21 - 一元表达式
+      // $.custom_expr, // 14 - 自定义操作符
+      $.power_expr, // 13 - 幂运算
+      $.mul_div_expr, // 12 - 乘除模
+      $.add_sub_expr, // 11 - 加减
+      $.command_argument,
+      $.command_expr, // 9 - 命令表达式  ==> cmd:38, cmd_arg:9
+      $.comparison_expr, // 8 - 比较表达式
+      $.logical_and_expr, // 7 - 逻辑与
+      $.logical_or_expr, // 6 - 逻辑或
+      $.conditional_expr, // 5 - 条件表达式
+      $.lambda_expr, // 4 - Lambda表达式
+      $.catch_expr, // 3 - 错误处理
+      $.pipe_expr, // 2 - 管道表达式
+      $.assign_expr, // 1 - 赋值表达式
+      $._primary_expr, // 39 - 最高优先级 ==> 0
+    ],
+    [
+      $.slice_expr, // 30
+      $.index_expr, // 29
 
+      $.unit_expr, // 25
+      $.range_expr, // 25
+      $.add_sub_expr,
+    ],
+    [$.lambda_params, $._primary_expr],
+    [$.command_argument, $._expression],
+    // [
+    //   $.if_expr,
+    //   $.while_expr,
+    //   $.for_expr,
+    //   $.loop_expr,
+    //   $.match_expr,
+    //   $.return_statement,
+    //   $.break_statement,
+    //   $.declaration,
+    //   $.control_flow,
+    //   $.function_def,
+    //   $.use_statement,
+    //   $.alias_statement,
+    //   $.del_statement,
+    //   $._expression,
+    // ],
+    // [$.command_expr, $.command_argument, $._primary_expr],
+  ],
   rules: {
-    lumesh: ($) => seq(optional(repeat('\n')), repeat($._statements)),
+    lumesh: ($) =>
+      seq(optional(repeat(choice(';', '\n'))), repeat($._statements)),
 
     _statements: ($) =>
       seq(
@@ -65,107 +88,87 @@ module.exports = grammar({
           $.use_statement,
           $.alias_statement,
           $.del_statement,
-          $.export_statement,
-          $.set_statement,
+          // $.command_expr, // 9 - 命令表达式  ==> cmd:38, cmd_arg:9
           $._expression,
         ),
         repeat1(choice(';', '\n')),
       ),
-    _statement_inline: ($) =>
-      choice(
-        $.control_flow,
-        $.use_statement,
-        $.alias_statement,
-        $.del_statement,
-        $.export_statement,
-        $.set_statement,
-        $._expression,
-      ),
 
+    // 表达式 - 按优先级从高到低排列 (39 -> 1)
     _expression: ($) =>
       choice(
-        // flow
-        $.if_expr,
-        // $.while_expr,
-        $.for_expr,
-        // $.loop_expr,
-        $.match_expr,
-        // normal
-        $.group_expr,
-        $.property_expr,
-        $.chain_expr,
-        $.function_call,
-        $._postfix_expr,
-        $.unary_expr,
-        $.power_expr,
-        $.mul_div_expr,
-        $.add_sub_expr,
-        $.command_expr,
-        $.comparison_expr,
-        $.logical_and_expr,
-        $.logical_or_expr,
-        $.conditional_expr,
-        $.lambda_expr,
-        $.catch_expr,
-        $.pipe_expr,
-        $.assign_expr,
-        $._primary_expr,
+        $.group_expr, // 38 - 分组表达式
+        $.chain_expr, // 27
+        $.function_call, //               ==> func:37, func_arg: 3
+        $._postfix_expr, // 25-30 - 后缀表达式
+        $.unary_expr, // 20-21 - 一元表达式
+        // $.custom_expr, // 14 - 自定义操作符
+        $.power_expr, // 13 - 幂运算
+        $.mul_div_expr, // 12 - 乘除模
+        $.add_sub_expr, // 11 - 加减
+        $.command_expr, // 9 - 命令表达式  ==> cmd:38, cmd_arg:9
+        $.comparison_expr, // 8 - 比较表达式
+        $.logical_and_expr, // 7 - 逻辑与
+        $.logical_or_expr, // 6 - 逻辑或
+        $.conditional_expr, // 5 - 条件表达式
+        $.lambda_expr, // 4 - Lambda表达式
+        $.catch_expr, // 3 - 错误处理
+        $.pipe_expr, // 2 - 管道表达式
+        $.assign_expr, // 1 - 赋值表达式
+        $._primary_expr, // 39 - 最高优先级 ==> 0
       ),
 
+    // 基础表达式 (优先级 39)
     _primary_expr: ($) =>
-      choice(
-        $.literal,
-        $.symbol,
-        $.variable,
-        $.list,
-        $.namedmap,
-        $.map,
-        $.sets,
-      ),
+      choice($.symbol, $.variable, $.literal, $.list, $.map),
 
+    // 分组表达式 (优先级 38)
     group_expr: ($) => seq('(', field('content', $._expression), ')'),
 
+    // 后缀表达式 (优先级 25-30)
     _postfix_expr: ($) =>
-      choice($.slice_expr, $.index_expr, $.unit_expr, $.range_expr),
+      choice(
+        $.slice_expr, // 30
+        $.index_expr, // 29
 
+        $.unit_expr, // 25
+        $.range_expr, // 25
+      ),
+
+    // 切片表达式 (优先级 30)
     slice_expr: ($) =>
       prec.left(
         seq(
           field('object', $._expression),
           token.immediate('['),
           field('start', optional($._expression)),
-          choice('..=', '..'),
+          '..',
           field('end', optional($._expression)),
           optional(seq(':', field('step', $._expression))),
           ']',
         ),
       ),
 
+    // 索引表达式 (优先级 29)
     index_expr: ($) =>
       prec.left(
+        // 29,
         seq(
           field('object', $._expression),
           choice(
             seq(token.immediate('['), field('index', $._expression), ']'),
             seq(token.immediate('@'), field('index', $._expression)),
-            // seq(token.immediate('.'), field('property', $.symbol)),
+            seq(token.immediate('.'), field('index', $._expression)),
           ),
         ),
       ),
 
-    property_expr: ($) =>
-      prec.left(
-        seq(
-          field('object', choice($.symbol, $.variable)),
-          token.immediate('.'),
-          field('property', $.symbol),
-        ),
-      ),
-
+    // 链式调用表达式 (优先级 27)
     chain_expr: ($) =>
       prec.left(
+        27,
         seq(
-          field('object', choice($.literal, $.symbol, $.variable)),
+          field('object', $._expression),
           repeat1(
             seq(
               token.immediate('.'),
@@ -178,28 +181,22 @@ module.exports = grammar({
         ),
       ),
 
+    // 函数调用 (优先级 26)
     function_call: ($) =>
       prec.left(
+        // 10,
         seq(
           field('func', $.symbol),
           token.immediate('('),
-          field('arg', optional(commaSep1($._expression))),
+          field('arg', optional(prec(9, commaSep1($._expression)))),
           ')',
         ),
       ),
 
-    apply_expr: ($) =>
-      prec.left(
-        seq(
-          field('func', $._expression),
-          token.immediate('('),
-          field('arg', optional(commaSep1($._expression))),
-          ')',
-        ),
-      ),
-
+    // 单位表达式 (优先级 25)
     unit_expr: ($) =>
       prec.left(
+        // 25,
         seq(
           field('value', choice($.integer, $.float)),
           field(
@@ -209,8 +206,10 @@ module.exports = grammar({
         ),
       ),
 
+    // 范围表达式 (优先级 25)
     range_expr: ($) =>
       prec.left(
+        // 25,
         seq(
           field('start', choice($.integer, $.symbol, $.variable)),
           field(
@@ -224,30 +223,50 @@ module.exports = grammar({
         ),
       ),
 
+    // 一元表达式 (优先级 20-21)
     unary_expr: ($) =>
-      // choice(
-      // prec.right(
-      //   seq(
-      //     field('operator', choice('++', '--')),
-      //     field('operand', $._expression),
-      //   ),
-      // ),
-      prec.right(
-        seq(
-          field('operator', choice('!', '-')),
-          field('operand', $._expression),
+      choice(
+        // 前缀一元运算符 (优先级 21)
+        prec.right(
+          // 21,
+          seq(
+            field('operator', choice('++', '--')),
+            field('operand', $._expression),
+          ),
+        ),
+        // 普通一元运算符 (优先级 20)
+        prec.right(
+          // 20,
+          seq(
+            field('operator', choice('!', '-')),
+            field('operand', $._expression),
+          ),
+        ),
+        // 后缀一元运算符 (优先级 21)
+        prec.left(
+          // 21,
+          seq(
+            field('operand', $._expression),
+            field('operator', token.immediate(choice('++', '--'))),
+          ),
         ),
       ),
-    // prec.left(
-    //   seq(
-    //     field('operand', $._expression),
-    //     field('operator', token.immediate(choice('++', '--'))),
-    //   ),
-    // ),
-    // ),
 
+    // 自定义操作符 (优先级 14, 左结合)
+    custom_expr: ($) =>
+      prec.left(
+        // 14,
+        seq(
+          field('left', $._expression),
+          field('operator', /_.*/), // 以 _ 开头的自定义操作符
+          field('right', $._expression),
+        ),
+      ),
+
+    // 幂运算 (优先级 13, 右结合)
     power_expr: ($) =>
       prec.right(
+        // 13,
         seq(
           field('base', $._expression),
           field('operator', '^'),
@@ -255,8 +274,10 @@ module.exports = grammar({
         ),
       ),
 
+    // 乘除模表达式 (优先级 12, 左结合)
     mul_div_expr: ($) =>
       prec.left(
+        // 12,
         seq(
           field('left', $._expression),
           field('operator', choice('*', '/', '%')),
@@ -264,6 +285,7 @@ module.exports = grammar({
         ),
       ),
 
+    // 加减表达式 (优先级 11, 左结合)
     add_sub_expr: ($) =>
       prec.left(
         seq(
@@ -273,49 +295,58 @@ module.exports = grammar({
         ),
       ),
 
+    // 命令表达式 (优先级 9, 左结合)
     command_expr: ($) =>
       prec.left(
+        // 9,
         seq(
-          field('cmd', choice($.symbol, $.property_expr, $.path_arg)),
+          field('cmd', $.symbol),
           field('arg', repeat1($.command_argument)),
           field('redirect', optional($.stdout_ctrl)),
         ),
       ),
 
     command_argument: ($) =>
+      // prec.right(
+      // 40,
       choice(
-        $.literal,
-        $.symbol,
-        $.variable,
-        $.list,
-        $.namedmap, //never map
-        $.sets,
-        $.group_expr,
+        // $.symbol,
+        // $.variable,
+        // $.literal,
+        // prec(39, $._primary_expr), // 39 - 最高优先级
+        $._primary_expr, // 39 - 最高优先级
+        $.group_expr, // 38 - 分组表达式
+        // $.chain_expr,
+        // $._postfix_expr, // 25-30 - 后缀表达式
+        // $.unary_expr, // 20-21 - 一元表达式
+        // $.custom_expr, // 14 - 自定义操作符
+        // $.power_expr, // 13 - 幂运算
+        // $.mul_div_expr, // 12 - 乘除模
+        // $.add_sub_expr, // 11 - 加减
+        // prec(11, $.add_sub_expr), // 11 - 加减
         $.path_arg,
-        $.property_expr,
-        $.chain_expr,
-        $.function_call,
       ),
+    // ),
 
+    // 比较表达式 (优先级 8, 左结合)
     comparison_expr: ($) =>
       prec.left(
+        // 8,
         seq(
           field('left', $._expression),
           field(
             'operator',
             choice(
-              '===',
-              '!==',
               '==',
               '!=',
               '>',
               '<',
               '>=',
               '<=',
-              // '~~',
-              // '~=',
+              '~~',
+              '~=',
               '~:',
-              // '!~~',
+              '!~~',
               '!~:',
             ),
           ),
@@ -323,8 +354,10 @@ module.exports = grammar({
         ),
       ),
 
+    // 逻辑与 (优先级 7, 左结合)
     logical_and_expr: ($) =>
       prec.left(
+        // 7,
         seq(
           field('left', $._expression),
           field('operator', '&&'),
@@ -332,8 +365,10 @@ module.exports = grammar({
         ),
       ),
 
+    // 逻辑或 (优先级 6, 左结合)
     logical_or_expr: ($) =>
       prec.left(
+        // 6,
         seq(
           field('left', $._expression),
           field('operator', '||'),
@@ -341,8 +376,10 @@ module.exports = grammar({
         ),
       ),
 
+    // 条件表达式 (优先级 5, 右结合)
     conditional_expr: ($) =>
       prec.right(
+        // 5,
         seq(
           field('condition', $._expression),
           '?',
@@ -352,8 +389,10 @@ module.exports = grammar({
         ),
       ),
 
+    // Lambda表达式 (优先级 4, 右结合)
     lambda_expr: ($) =>
       prec.right(
+        // 4,
         seq(
           choice(field('param', $.symbol), $.lambda_params),
           '->',
@@ -361,52 +400,41 @@ module.exports = grammar({
         ),
       ),
 
+    // Lambda参数列表
     lambda_params: ($) =>
-      seq('(', optional(commaSep1(field('param', $.symbol))), ')'),
+      prec.right(
+        // 4,
+        seq('(', optional(commaSep1(field('param', $.symbol))), ')'),
+      ),
 
+    // 错误处理表达式 (优先级 3, 左结合)
     catch_expr: ($) =>
       prec.left(
+        // 3,
         seq(
           field('try', $._expression),
           choice(
-            field('catcher', choice('?.', '?+', '??', '?>', '?!', '?~')),
+            field('catcher', choice('?.', '?+', '??', '?>', '?!')),
             seq(field('catcher', '?:'), field('handler', $._expression)),
           ),
         ),
       ),
 
+    // 管道表达式 (优先级 2, 左结合)
     pipe_expr: ($) =>
       prec.left(
+        // 2,
         seq(
           field('left', $._expression),
-          field('operator', choice('|', '|>', '|^', '<<', '>>', '>!')),
-          field('right', choice($.pipe_method_expr, $._expression)),
+          field('operator', choice('|', '|>', '|_', '|^', '<<', '>>', '>!')),
+          field('right', $._expression),
         ),
       ),
 
-    pipe_method_expr: ($) =>
-      seq(
-        token.immediate(' .'),
-        field('method', $.symbol),
-        token.immediate('('),
-        field('arg', optional(commaSep1($._expression))),
-        ')',
-      ),
-
-    module_call_expr: ($) =>
-      prec.left(
-        seq(
-          field('module', sepBy1('::', $.symbol)),
-          '::',
-          field('func', $.symbol),
-          token.immediate('('),
-          field('arg', optional(commaSep1($._expression))),
-          ')',
-        ),
-      ),
-
+    // 赋值表达式 (优先级 1, 右结合)
     assign_expr: ($) =>
       prec.right(
+        // 1,
         seq(
           field('target', $.symbol),
           field('operator', choice('=', ':=', '+=', '-=', '*=', '/=')),
@@ -414,8 +442,7 @@ module.exports = grammar({
         ),
       ),
 
-    // quote_expr: ($) => seq("'", field('content', $._expression), "'"),
-
+    // 字面量
     literal: ($) =>
       choice(
         $.integer,
@@ -427,14 +454,6 @@ module.exports = grammar({
         $.string_template,
         $.boolean,
         $.none,
-        $.blank,
-        $.file_size_literal,
-      ),
-
-    file_size_literal: ($) =>
-      seq(
-        field('value', choice($.integer, $.float)),
-        field('unit', choice('K', 'M', 'G', 'T', 'P', 'B')),
       ),
 
     integer: ($) =>
@@ -491,61 +510,35 @@ module.exports = grammar({
         '`',
       ),
 
-    boolean: ($) => choice('true', 'false'),
-    none: ($) => 'none',
+    boolean: ($) => choice('True', 'False'),
+    none: ($) => 'None',
 
+    // 标识符和变量
     symbol: ($) => /[a-zA-Z_][a-zA-Z0-9_]*/,
     variable: ($) => seq('$', field('name', $.symbol)),
-    // var_sym: ($) => seq(optional('$'), field('name', $.symbol)),
-    blank: ($) => '_',
 
+    // 集合类型
     list: ($) =>
+      // prec(
+      // 1,
       seq(
         '[',
         optional('\n'),
-        field('element', commaLineSep($._expression)),
-        optional($._expression),
-        // optional(seq(',', optional('\n'))),
+        field('elements', optional(commaLineSep1($._expression))),
         ']',
       ),
+    // ),
 
     map: ($) =>
+      // prec(
+      // 2,
       seq(
         '{',
         optional('\n'),
-        choice(
-          // 空 map 必须有逗号：{,} 或 {,\n}
-          seq(',', optional('\n')),
-          // 仅有1个entry且不带,的
-          seq($.map_entry, optional('\n')),
-          // 1个及以上
-          seq(
-            field('entry', commaLineSep1($.map_entry)),
-            optional(seq($.map_entry, optional('\n'))),
-          ),
-        ),
+        field('entries', commaLineSep1($.map_entry)),
         '}',
       ),
-
-    namedmap: ($) =>
-      seq(
-        choice('H{', 'M{'),
-        optional('\n'),
-        field('entry', commaLineSep($.map_entry)),
-        optional($.map_entry),
-        // optional(seq(',', optional('\n'))),
-        '}',
-      ),
-
-    sets: ($) =>
-      seq(
-        'S{',
-        optional('\n'),
-        field('element', optional(commaLineSep1($._expression))),
-        optional($._expression),
-        // optional(seq(',', optional('\n'))),
-        '}',
-      ),
+    // ),
 
     map_entry: ($) =>
       seq(
@@ -554,6 +547,8 @@ module.exports = grammar({
         optional('\n'),
         field('value', $._expression),
       ),
+
+    // 参数定义
 
     params: ($) =>
       seq(
@@ -569,8 +564,10 @@ module.exports = grammar({
         optional(seq(',', '*', field('var_collect', $.symbol))),
         ')',
       ),
-
+    // 命令参数符号
     path_arg: ($) =>
+      // prec(
+      // 38,
       token(
         choice(
           seq('--', /[a-zA-Z][a-zA-Z0-9-]*/),
@@ -578,7 +575,7 @@ module.exports = grammar({
           /\/[^\s]*/,
           /\.\.\/[^\s]*/,
           /\.\/[^\s]*/,
-          ' . ',
+          '.',
           /~\/[^\s]*/,
           /\*\/[^\s]*/,
           /\*\*\/[^\s]*/,
@@ -588,10 +585,14 @@ module.exports = grammar({
           /file:\/\/[^\s]*/,
         ),
       ),
+    // ),
 
     stdout_ctrl: ($) =>
+      // prec(
+      // 38,
       field('operator', token(choice('&', '&-', '&+', '&?', '&.'))),
-
+    // ),
+    // 声明和赋值
     declaration: ($) =>
       seq(
         'let',
@@ -602,26 +603,20 @@ module.exports = grammar({
           $.destruct_map,
         ),
       ),
-
     normal_assign: ($) =>
-      seq(
-        field('target', $.symbol),
-        choice(':=', '='),
-        field('value', $._expression),
-      ),
-
+      seq(field('target', $.symbol), '=', field('value', $._expression)),
     multi_assign: ($) =>
       seq(
-        field('targets', commaSep1($.symbol)),
+        field('target', commaSep1($.symbol)),
         '=',
-        field('values', commaSep1($._expression)),
+        field('value', commaSep1($._expression)),
       ),
 
     destruct_list: ($) =>
       seq(
         '[',
         field(
-          'targets',
+          'target',
           commaSep1(choice($.symbol, seq('*', field('rest', $.symbol)))),
         ),
         ']',
@@ -633,7 +628,7 @@ module.exports = grammar({
       seq(
         '{',
         field(
-          'targets',
+          'target',
           commaSep1(
             choice(
               $.symbol,
@@ -646,6 +641,7 @@ module.exports = grammar({
         field('value', $._expression),
       ),
 
+    // 控制流
     control_flow: ($) =>
       choice(
         $.if_expr,
@@ -660,35 +656,35 @@ module.exports = grammar({
     if_expr: ($) =>
       seq(
         'if',
-        field('condition', $._expression),
+        field('condit', $._condition),
         field('then_branch', $.block),
         optional(seq('else', field('else_branch', choice($.block, $.if_expr)))),
       ),
-
     _condition: ($) =>
       choice(
-        $.property_expr,
-        $.group_expr,
-        $.function_call,
-        $._postfix_expr,
-        $.unary_expr,
-        $.power_expr,
-        $.mul_div_expr,
-        $.add_sub_expr,
-        $.comparison_expr,
-        $.logical_and_expr,
-        $.logical_or_expr,
-        $.conditional_expr,
-        $._primary_expr,
-      ),
+        $.group_expr, // 38 - 分组表达式
+        // $.chain_expr, // 27
+        $.function_call, //               ==> func:37, func_arg: 3
+        $._postfix_expr, // 25-30 - 后缀表达式
+        $.unary_expr, // 20-21 - 一元表达式
+        // $.custom_expr, // 14 - 自定义操作符
+        $.power_expr, // 13 - 幂运算
+        $.mul_div_expr, // 12 - 乘除模
+        $.add_sub_expr, // 11 - 加减
 
+        $.comparison_expr, // 8 - 比较表达式
+        $.logical_and_expr, // 7 - 逻辑与
+        $.logical_or_expr, // 6 - 逻辑或
+        $.conditional_expr, // 5 - 条件表达式
+
+        $._primary_expr, // 39 - 最高优先级 ==> 0
+      ),
     while_expr: ($) =>
       seq('while', field('condition', $._condition), field('body', $.block)),
 
     for_expr: ($) =>
       seq(
         'for',
-        optional(seq(field('index', $.symbol), ',')),
         field('variable', $.symbol),
         'in',
         field('iterable', $._expression),
@@ -703,14 +699,13 @@ module.exports = grammar({
         field('value', $._expression),
         '{',
         optional('\n'),
-        field('arms', commaLineSep1($.match_arm)),
+        field('arm', commaLineSep1($.match_arm)),
         '}',
       ),
 
     match_arm: ($) =>
       seq(
-        field('pattern', choice($.symbol, commaSep1($.literal))),
-        // optional(seq('if', field('guard', $._expression))),
+        field('pattern', choice('_', commaSep1($.literal))),
         '=>',
         field('result', $._expression),
       ),
@@ -721,33 +716,25 @@ module.exports = grammar({
     break_statement: ($) =>
       prec.right(seq('break', field('value', optional($._expression)))),
 
+    // 函数定义
     function_def: ($) =>
       seq(
-        repeat(field('decorator', $.decorator)),
         'fn',
-        field('name', $.symbol),
+        field('func', $.symbol),
+
         field('params', $.params),
+
         field('body', $.block),
       ),
 
-    decorator: ($) =>
-      seq(
-        '@',
-        field('name', $.symbol),
-        optional(seq('(', field('args', commaSep1($._expression)), ')')),
-      ),
-
+    // 代码块
     block: ($) =>
-      seq(
-        '{',
-        optional(repeat('\n')),
-        field(
-          'statements',
-          seq(optional(repeat($._statements)), optional($._statement_inline)),
-        ),
-        '}',
-      ),
+      // prec(
+      // 0,
+      seq('{', optional('\n'), field('block', repeat($._statements)), '}'),
+    // ,
 
+    // 其他语句
     use_statement: ($) =>
       seq(
         'use',
@@ -760,32 +747,29 @@ module.exports = grammar({
 
     del_statement: ($) => seq('del', field('target', $.symbol)),
 
-    export_statement: ($) =>
-      seq(
-        'export',
-        field('name', $.symbol),
-        optional(seq('=', field('value', $._expression))),
-      ),
-
-    set_statement: ($) =>
-      seq('set', field('name', $.symbol), '=', field('value', $._expression)),
-
+    // 注释
     comment: ($) => token(seq('#', /.*/)),
   },
 });
 
+// 辅助函数
+/**
+ * Creates a rule to match one or more of the rules separated by a comma
+ *
+ * @param {Rule} rule
+ *
+ * @returns {SeqRule}
+ */
 function commaSep1(rule) {
   return seq(rule, repeat(seq(',', rule)));
 }
-
-function commaLineSep(rule) {
-  return repeat(seq(rule, ',', optional('\n')));
-}
-
+/**
+ * Creates a rule to match one or more of the rules separated by a comma
+ *
+ * @param {Rule} rule
+ *
+ * @returns {Repeat1Rule}
+ */
 function commaLineSep1(rule) {
   return repeat1(seq(rule, ',', optional('\n')));
-}
-
-function sepBy1(sep, rule) {
-  return seq(rule, repeat(seq(sep, rule)));
 }

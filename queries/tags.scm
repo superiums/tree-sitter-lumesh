@@ -40,8 +40,8 @@
 
 ; 局部作用域
 (function_def) @local.scope
-; (block) @local.scope
 (lambda_expr) @local.scope
+(block) @local.scope
 
 ; 局部变量定义
 (params

@@ -19,6 +19,8 @@
 ; Import/module keywords
 [
 "let"
+"set"
+"export"
 "use"
 "as"
 "alias"
@@ -53,16 +55,15 @@
 
 ; Comparison operators
 [
+"==="
+"!=="
 "=="
 "!="
 ">"
 "<"
 ">="
 "<="
-"~~"
-"~="
 "~:"
-"!~~"
 "!~:"
 ] @operator.comparison
 
@@ -80,7 +81,6 @@
 "<<"
 ">>"
 ">!"
-"|_"
 "|^"
 ] @operator.pipeline
 
@@ -92,12 +92,11 @@
 "?>"
 "?!"
 "?:"
+"?~"
 ] @operator.error
 
 ; Special operators
 [
-"++"
-"--"
 "?"
 ":"
 "->"
@@ -132,12 +131,28 @@
 ] @punctuation.terminator.semicolon
 
 [
+".."
+] @punctuation.special.range
+
+[
 "."
 ] @punctuation.accessor.dot
 
 [
+"::"
+] @punctuation.accessor.modulefun
+
+[
+":"
+] @punctuation.special.step
+
+[
 "@"
 ] @punctuation.special.at
+
+[
+"_"
+] @punctuation.special.blankarg
 
 [
 "`"

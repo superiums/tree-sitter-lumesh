@@ -12,6 +12,7 @@
       "highlights": "queries/highlights.scm",
       "locals": "queries/locals.scm",
       "tags": "queries/tags.scm",
+      "brackets": "queries/brackets.scm",
       "first-line-regex": "^#!.*\\b(lm|lume|lumesh)\\b.*$"
     }
   ],
