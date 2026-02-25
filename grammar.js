@@ -559,10 +559,19 @@ module.exports = grammar({
       seq(
         '(',
         optional(
-          commaSep1(
-            seq(
-              field('param', $.symbol),
-              optional(seq('=', field('default', $._expression))),
+          seq(
+            commaSep1(
+              seq(
+                field('param', $.symbol),
+                optional(seq('=', field('default', $.literal))),
+              ),
+            ),
+            // 允许无逗号形参
+            optional(
+              seq(
+                field('param', $.symbol),
+                optional(seq('=', field('default', $.literal))),
+              ),
             ),
           ),
         ),
