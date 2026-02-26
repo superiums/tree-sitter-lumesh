@@ -1,0 +1,74 @@
+==================================================
+链式调用测试（包含 index_expr）
+==================================================
+
+=== 基本链式调用
+obj.method1().method2(arg)
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (chain_expr
+          (object
+            (symbol))
+          (method
+            (symbol))
+          (arguments
+            (arg
+              (_expression
+                (_primary_expr
+                  (symbol)))))
+          (method
+            (symbol))
+          (arguments
+            (arg
+              (_expression
+                (_primary_expr
+                  (symbol))))))))))
+
+=== 包含 index_expr 的链式调用
+arr[0].method()
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (chain_expr
+          (object
+            (index_expr
+              (object
+                (symbol))
+              (index
+                (_expression
+                  (_primary_expr
+                    (literal
+                      (integer)))))))
+          (method
+            (symbol))
+          (arguments)))))))
+
+=== 嵌套链式调用
+a.b().c[0].d()
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (chain_expr
+          (object
+            (symbol))
+          (method
+            (symbol))
+          (arguments)
+          (method
+            (symbol))
+          (arguments)
+          (method
+            (symbol))
+          (arguments
+            (arg
+              (_expression
+                (_primary_expr
+                  (literal
+                    (integer))))))))))))

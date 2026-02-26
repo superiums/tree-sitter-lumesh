@@ -1,0 +1,89 @@
+==================================================
+控制流测试
+==================================================
+
+=== if 表达式
+if condition { then_expr } else { else_expr }
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (if_expr
+          (condition
+            (_expression
+              (_primary_expr
+                (symbol))))
+          (then_branch
+            (block
+              (statement
+                (_statement_inline
+                  (_expression
+                    (_primary_expr
+                      (symbol)))))))
+          (else_branch
+            (block
+              (statement
+                (_statement_inline
+                  (_expression
+                    (_primary_expr
+                      (symbol)))))))))))))
+
+=== for 循环
+for i, v in iter { body }
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (for_expr
+          (index
+            (symbol))
+          (variable
+            (symbol))
+          (iterable
+            (_expression
+              (_primary_expr
+                (symbol))))
+          (body
+            (block
+              (statement
+                (_statement_inline
+                  (_expression
+                    (_primary_expr
+                      (symbol)))))))))))))
+
+=== match 表达式
+match value {
+  pattern1 => result1
+  pattern2 => { block }
+}
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (match_expr
+          (value
+            (_expression
+              (_primary_expr
+                (symbol))))
+          (arm
+            (match_arm
+              (pattern
+                (symbol))
+              (result
+                (_expression
+                  (_primary_expr
+                    (symbol))))))
+          (arm
+            (match_arm
+              (pattern
+                (symbol))
+              (result
+                (block
+                  (statement
+                    (_statement_inline
+                      (_expression
+                        (_primary_expr
+                          (symbol))))))))))))))))

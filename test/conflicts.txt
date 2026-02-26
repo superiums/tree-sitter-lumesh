@@ -1,0 +1,55 @@
+==================================================
+冲突场景测试
+==================================================
+
+=== command_expr 与 _primary_expr 冲突
+cmd -arg
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (command_expr
+          (cmd
+            (symbol))
+          (arg
+            (command_argument
+              (_primary_expr
+                (literal
+                  (path_arg)))))))))))
+
+=== command_expr 与 command_argument 冲突
+cmd arg (param)
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (command_expr
+          (cmd
+            (symbol))
+          (arg
+            (command_argument
+              (_primary_expr
+                (symbol))))
+          (arg
+            (command_argument
+              (group_expr
+                (content
+                  (_expression
+                    (_primary_expr
+                      (symbol)))))))))))))
+
+=== chain_expr 与 function_call 冲突
+obj.method()
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (chain_expr
+          (object
+            (symbol))
+          (method
+            (symbol))
+          (arguments)))))))

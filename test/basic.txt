@@ -1,0 +1,53 @@
+==================================================
+基本表达式测试
+==================================================
+
+=== 简单标识符
+x
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (_primary_expr
+          (symbol)))))
+
+=== 数字字面量
+42 3.14
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (_primary_expr
+          (literal
+            (integer))))
+      ";"
+      (_expression
+        (_primary_expr
+          (literal
+            (float)))))))
+
+=== 字符串
+"hello" 'raw' `template ${var}`
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (_primary_expr
+          (literal
+            (string))))
+      ";"
+      (_expression
+        (_primary_expr
+          (literal
+            (string_raw))))
+      ";"
+      (_expression
+        (_primary_expr
+          (literal
+            (string_template
+              (variable)
+              (interpolation
+                (variable)))))))))

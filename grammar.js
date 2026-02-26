@@ -103,6 +103,7 @@ module.exports = grammar({
         $.chain_expr,
         $.property_expr,
         $.function_call,
+        $.module_call_expr,
         $._postfix_expr,
         $.unary_expr,
         $.power_expr,
@@ -514,7 +515,7 @@ module.exports = grammar({
     boolean: ($) => choice('true', 'false'),
     none: ($) => 'none',
 
-    symbol: ($) => /[a-zA-Z_][a-zA-Z0-9_]*/,
+    symbol: ($) => /[a-zA-Z_][a-zA-Z0-9_\-]*/,
     variable: ($) => seq('$', field('name', $.symbol)),
     // var_sym: ($) => seq(optional('$'), field('name', $.symbol)),
     blank: ($) => '_',
@@ -640,9 +641,9 @@ module.exports = grammar({
 
     multi_assign: ($) =>
       seq(
-        field('targets', commaSep1($.symbol)),
+        field('targets', commaSep1(field('target', $.symbol))),
         '=',
-        field('values', commaSep1($._expression)),
+        field('values', commaSep1(field('value', $._expression))),
       ),
 
     destruct_list: ($) =>

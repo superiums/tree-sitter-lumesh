@@ -1,0 +1,62 @@
+==================================================
+命令表达式测试
+==================================================
+
+=== 简单命令
+cmd arg1 arg2
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (command_expr
+          (cmd
+            (symbol))
+          (arg
+            (command_argument
+              (_primary_expr
+                (symbol))))
+          (arg
+            (command_argument
+              (_primary_expr
+                (symbol)))))))))
+
+=== 带重定向的命令
+ls -la > output.txt
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (command_expr
+          (cmd
+            (symbol))
+          (arg
+            (command_argument
+              (_primary_expr
+                (literal
+                  (path_arg)))))
+          (arg
+            (command_argument
+              (_primary_expr
+                (literal
+                  (path_arg)))))
+          (redirect
+            (operator
+              (path_arg)))))))))
+
+=== 命令与表达式冲突测试
+cmd -flag
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (command_expr
+          (cmd
+            (symbol))
+          (arg
+            (command_argument
+              (_primary_expr
+                (literal
+                  (path_arg)))))))))))

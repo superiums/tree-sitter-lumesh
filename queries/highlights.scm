@@ -11,6 +11,11 @@
 "break"
 ] @keyword.control
 
+[
+"use"
+"as"
+] @keyword.control.import
+
 ; Declaration keywords
 [
 "fn"
@@ -21,11 +26,9 @@
 "let"
 "set"
 "export"
-"use"
-"as"
 "alias"
 "del"
-] @keyword.import
+] @keyword.directive
 
 ; Loop-specific keywords
 [
@@ -71,14 +74,14 @@
 [
 "&&"
 "||"
-"!"
+; "!"
 ] @operator.logical
 
 ; Pipeline operators
 [
 "|"
 "|>"
-"<<"
+; "<<"
 ">>"
 ">!"
 "|^"
@@ -98,11 +101,10 @@
 ; Special operators
 [
 "?"
-":"
+; ":"
 "->"
 "=>"
 ] @operator.special
-
 
 ; Punctuation
 ; Brackets by type
@@ -131,33 +133,27 @@
 ] @punctuation.terminator.semicolon
 
 [
-".."
-] @punctuation.special.range
-
-[
 "."
 ] @punctuation.accessor.dot
-
-[
-"::"
-] @punctuation.accessor.modulefun
-
-[
-":"
-] @punctuation.special.step
 
 [
 "@"
 ] @punctuation.special.at
 
 [
-"_"
-] @punctuation.special.blankarg
-
-[
 "`"
 ] @punctuation.definition.template
 
+; Range 运算符
+(range_expr
+  operator: _ @operator.range)
+
+; Slice 分隔符
+(slice_expr
+  ":" @punctuation.delimiter)
+
+; Blank 占位符
+(blank) @constant.builtin
 
 ; Built-in constants
 (none) @constant.builtin
@@ -169,39 +165,54 @@
 
 ; Function-related identifiers
 (function_def
-
-func: (symbol) @function.definition)
+name: (symbol) @function.definition)
 
 (function_call
-
 func: (symbol) @function.call)
 
 (command_expr
-
 cmd: (symbol) @function.command)
+
+(chain_expr
+method: (symbol) @function.method)
+
+(pipe_method_expr
+method: (symbol) @function.method)
+
+(module_call_expr
+func: (symbol) @function.call)
 
 ; Parameters and arguments
 (params
-
 param: (symbol) @variable.parameter)
 
-(for_expr
+(params
+var_collect: (symbol) @variable.parameter)
 
+(for_expr
 variable: (symbol) @variable.parameter.loop)
+
+(for_expr
+index: (symbol) @variable.parameter.loop)
 
 ; Property access
 (map_entry
+key: _ @variable.other.member)
 
-key: (symbol) @property.definition)
+(property_expr
+property: (symbol) @attribute)
 
-(map_entry
+; label
+(normal_assign
+target: (symbol) @label)
 
-key: (string) @property.definition.string)
-
+; namespace
+(module_call_expr
+module: (symbol) @namespace)
 
 ; Numbers
-(integer) @number.integer
-(float) @number.float
+(integer) @constant.numeric
+(float) @constant.numeric
 
 ; Strings with specific types
 (string) @string.quoted.double
@@ -212,35 +223,24 @@ key: (string) @property.definition.string)
 
 ; Special string contexts
 (use_statement
-
 module: (string) @string.special.path)
+
+(use_statement
+module: (string_raw) @string.special.path)
 
 (path_arg) @string.special.path
 
 ; Module detection in various contexts
 (use_statement
-
-module: (string) @module)
+module: (symbol) @module)
 
 (chain_expr
-
 object: (symbol) @module
-
 (#match? @module "^[A-Z]"))
 
-; Regular chain expression object (non-module)
 (chain_expr
-
 object: (symbol) @variable
-
 (#not-match? @variable "^[A-Z]"))
-
-; Chain expression methods
-(chain_expr
-
-method: (symbol) @function.method)
-
-
 
 ; Expression types for additional context
 (add_sub_expr) @expression.arithmetic
@@ -253,13 +253,29 @@ method: (symbol) @function.method)
 (lambda_expr) @expression.function
 (pipe_expr) @expression.pipeline
 (range_expr) @expression.range
+(catch_expr) @expression.error
 
 ; Block structures
 (block) @structure.block
 (list) @structure.list
 (map) @structure.map
+(namedmap) @structure.map
+(sets) @structure.set
 (comment) @comment
 
+; Literals
+(blank) @constant.builtin
+(file_size_literal) @number.float
+
+; Decorators
+(decorator
+name: (symbol) @function.definition)
+
+; Destructuring
+(destruct_list
+target: (symbol) @variable.parameter)
+(destruct_map
+target: (symbol) @variable.parameter)
 
 ; Generic field matching for operators
 (_ operator: _ @operator)

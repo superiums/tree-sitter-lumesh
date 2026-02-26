@@ -1,0 +1,75 @@
+==================================================
+集合类型测试
+==================================================
+
+=== 列表
+[1, 2, 3]
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (_primary_expr
+          (list
+            (element
+              (_expression
+                (_primary_expr
+                  (literal
+                    (integer)))))
+            ","
+            (element
+              (_expression
+                (_primary_expr
+                  (literal
+                    (integer)))))
+            ","
+            (element
+              (_expression
+                (_primary_expr
+                  (literal
+                    (integer))))))))))))
+
+=== Map
+{ key1: value1, key2: value2 }
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (_primary_expr
+          (map
+            (entry
+              (map_entry
+                (key
+                  (symbol))
+                (value
+                  (_expression
+                    (_primary_expr
+                      (symbol))))))
+            ","
+            (entry
+              (map_entry
+                (key
+                  (symbol))
+                (value
+                  (_expression
+                    (_primary_expr
+                      (symbol)))))))))))))
+
+=== NamedMap
+H{ key: value }
+---
+(source_file
+  (lumesh
+    (_statements
+      (_expression
+        (_primary_expr
+          (namedmap
+            (entry
+              (map_entry
+                (key
+                  (symbol))
+                (value
+                  (_expression
+                    (_primary_expr
+                      (symbol)))))))))))))
