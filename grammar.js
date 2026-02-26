@@ -15,7 +15,6 @@ module.exports = grammar({
   conflicts: ($) => [
     [$.multi_assign, $.normal_assign],
     // [$.chain_expr, $.function_call],
-    // [$.command_argument, $._expression],
     [$.lambda_params, $._primary_expr],
     // [$.slice_expr, $.index_expr],
     // [$.slice_expr, $.index_expr, $.command_argument],
@@ -23,7 +22,15 @@ module.exports = grammar({
     // [$.index_expr, $.chain_expr, $.command_argument],
     // [$.add_sub_expr, $.command_argument],
     [$.control_flow, $._expression],
-    [$.map, $.block], // 新增
+    [$.map, $.block],
+
+    [$.command_expr, $.literal],
+    // after add index_expr to chain_expr
+    [$.command_expr, $._primary_expr],
+    [$.command_expr, $._expression],
+    [$.command_expr, $.command_argument],
+    [$.command_argument, $._primary_expr],
+    [$.command_argument, $._expression],
   ],
 
   precedences: ($) => [
@@ -35,6 +42,7 @@ module.exports = grammar({
     [$.unit_expr],
     [$.range_expr],
     [$.chain_expr],
+    [$.property_expr],
     [$.function_call],
     [$.unary_expr],
     [$.power_expr],
@@ -92,8 +100,8 @@ module.exports = grammar({
         $.match_expr,
         // normal
         $.group_expr,
-        $.property_expr,
         $.chain_expr,
+        $.property_expr,
         $.function_call,
         $._postfix_expr,
         $.unary_expr,
@@ -133,10 +141,12 @@ module.exports = grammar({
         seq(
           field('object', $._expression),
           token.immediate('['),
-          field('start', optional($._expression)),
+          field('start', choice($.integer, $.symbol, $.variable, $.blank)),
           choice('..=', '..'),
-          field('end', optional($._expression)),
-          optional(seq(':', field('step', $._expression))),
+          field('end', choice($.integer, $.symbol, $.variable, $.blank)),
+          optional(
+            seq(':', field('step', choice($.integer, $.symbol, $.variable))),
+          ),
           ']',
         ),
       ),
@@ -147,7 +157,7 @@ module.exports = grammar({
           field('object', $._expression),
           choice(
             seq(token.immediate('['), field('index', $._expression), ']'),
-            seq(token.immediate('@'), field('index', $._expression)),
+            // seq(token.immediate('@'), field('index', $._expression)),
             // seq(token.immediate('.'), field('property', $.symbol)),
           ),
         ),
@@ -165,7 +175,10 @@ module.exports = grammar({
     chain_expr: ($) =>
       prec.left(
         seq(
-          field('object', choice($.literal, $.symbol, $.variable)),
+          field(
+            'object',
+            choice($.literal, $.symbol, $.variable, $.index_expr),
+          ),
           repeat1(
             seq(
               token.immediate('.'),
@@ -188,15 +201,15 @@ module.exports = grammar({
         ),
       ),
 
-    apply_expr: ($) =>
-      prec.left(
-        seq(
-          field('func', $._expression),
-          token.immediate('('),
-          field('arg', optional(commaSep1($._expression))),
-          ')',
-        ),
-      ),
+    // apply_expr: ($) =>
+    //   prec.left(
+    //     seq(
+    //       field('func', $._expression),
+    //       token.immediate('('),
+    //       field('arg', optional(commaSep1($._expression))),
+    //       ')',
+    //     ),
+    //   ),
 
     unit_expr: ($) =>
       prec.left(
@@ -212,12 +225,12 @@ module.exports = grammar({
     range_expr: ($) =>
       prec.left(
         seq(
-          field('start', choice($.integer, $.symbol, $.variable)),
+          field('start', choice($.integer, $.symbol, $.variable, $.blank)),
           field(
             'operator',
             token.immediate(choice('...', '...=', '..=', '..')),
           ),
-          field('end', choice($.integer, $.symbol, $.variable)),
+          field('end', choice($.integer, $.symbol, $.variable, $.blank)),
           optional(
             seq(':', field('step', choice($.integer, $.symbol, $.variable))),
           ),
@@ -234,7 +247,7 @@ module.exports = grammar({
       // ),
       prec.right(
         seq(
-          field('operator', choice('!', '-')),
+          token(field('operator', choice('!', '-'))),
           field('operand', $._expression),
         ),
       ),
@@ -284,16 +297,18 @@ module.exports = grammar({
 
     command_argument: ($) =>
       choice(
+        // $._primary_expr,
         $.literal,
         $.symbol,
         $.variable,
         $.list,
         $.namedmap, //never map
         $.sets,
+        // other
         $.group_expr,
-        $.path_arg,
-        $.property_expr,
+        // $.path_arg,
         $.chain_expr,
+        $.property_expr,
         $.function_call,
       ),
 
@@ -367,10 +382,13 @@ module.exports = grammar({
     catch_expr: ($) =>
       prec.left(
         seq(
-          field('try', $._expression),
+          field('try', choice($._expression, $.function_def)),
           choice(
             field('catcher', choice('?.', '?+', '??', '?>', '?!', '?~')),
-            seq(field('catcher', '?:'), field('handler', $._expression)),
+            seq(
+              field('catcher', '?:'),
+              field('handler', choice($._expression)),
+            ),
           ),
         ),
       ),
@@ -409,7 +427,7 @@ module.exports = grammar({
       prec.right(
         seq(
           field('target', $.symbol),
-          field('operator', choice('=', ':=', '+=', '-=', '*=', '/=')),
+          field('operator', choice('=', '+=', '-=', '*=', '/=')),
           field('value', $._expression),
         ),
       ),
@@ -425,6 +443,7 @@ module.exports = grammar({
         $.string_regex,
         $.string_time,
         $.string_template,
+        $.path_arg,
         $.boolean,
         $.none,
         $.blank,
@@ -485,6 +504,7 @@ module.exports = grammar({
         repeat(
           choice(
             /[^`$]+/,
+            $.variable,
             seq('${', field('interpolation', $._expression), '}'),
           ),
         ),
@@ -533,7 +553,6 @@ module.exports = grammar({
         optional('\n'),
         field('entry', commaLineSep($.map_entry)),
         optional($.map_entry),
-        // optional(seq(',', optional('\n'))),
         '}',
       ),
 
@@ -543,7 +562,6 @@ module.exports = grammar({
         optional('\n'),
         field('element', optional(commaLineSep1($._expression))),
         optional($._expression),
-        // optional(seq(',', optional('\n'))),
         '}',
       ),
 
@@ -579,22 +597,23 @@ module.exports = grammar({
         ')',
       ),
 
+    // path遇到空白、括号和分号终止
     path_arg: ($) =>
       token(
         choice(
           seq('--', /[a-zA-Z][a-zA-Z0-9-]*/),
           seq('-', /[a-zA-Z]/),
-          /\/[^\s]*/,
-          /\.\.\/[^\s]*/,
-          /\.\/[^\s]*/,
+          /\/[^\s;\)\]\}]*/,
+          /\.\.\/[^\s;\)\]\}]*/,
+          /\.\/[^\s;\)\]\}]*/,
           ' . ',
-          /~\/[^\s]*/,
-          /\*\/[^\s]*/,
-          /\*\*\/[^\s]*/,
-          /\*\.[^\s]*/,
-          /https?:\/\/[^\s]*/,
-          /ftp:\/\/[^\s]*/,
-          /file:\/\/[^\s]*/,
+          /~\/[^\s;\)\]\}]*/,
+          /\*\/[^\s;\)\]\}]*/,
+          /\*\*\/[^\s;\)\]\}]*/,
+          /\*\.[^\s;\)\]\}]*/,
+          /https?:\/\/[^\s;\)\]\}]*/,
+          /ftp:\/\/[^\s;\)\]\}]*/,
+          /file:\/\/[^\s;\)\]\}]*/,
         ),
       ),
 
@@ -630,7 +649,7 @@ module.exports = grammar({
       seq(
         '[',
         field(
-          'targets',
+          'target',
           commaSep1(choice($.symbol, seq('*', field('rest', $.symbol)))),
         ),
         ']',
@@ -642,7 +661,7 @@ module.exports = grammar({
       seq(
         '{',
         field(
-          'targets',
+          'target',
           commaSep1(
             choice(
               $.symbol,
@@ -674,25 +693,25 @@ module.exports = grammar({
         optional(seq('else', field('else_branch', choice($.block, $.if_expr)))),
       ),
 
-    _condition: ($) =>
-      choice(
-        $.property_expr,
-        $.group_expr,
-        $.function_call,
-        $._postfix_expr,
-        $.unary_expr,
-        $.power_expr,
-        $.mul_div_expr,
-        $.add_sub_expr,
-        $.comparison_expr,
-        $.logical_and_expr,
-        $.logical_or_expr,
-        $.conditional_expr,
-        $._primary_expr,
-      ),
+    // _condition: ($) =>
+    //   choice(
+    //     $.property_expr,
+    //     $.group_expr,
+    //     $.function_call,
+    //     $._postfix_expr,
+    //     $.unary_expr,
+    //     $.power_expr,
+    //     $.mul_div_expr,
+    //     $.add_sub_expr,
+    //     $.comparison_expr,
+    //     $.logical_and_expr,
+    //     $.logical_or_expr,
+    //     $.conditional_expr,
+    //     $._primary_expr,
+    //   ),
 
     while_expr: ($) =>
-      seq('while', field('condition', $._condition), field('body', $.block)),
+      seq('while', field('condition', $._expression), field('body', $.block)),
 
     for_expr: ($) =>
       seq(
@@ -712,16 +731,16 @@ module.exports = grammar({
         field('value', $._expression),
         '{',
         optional('\n'),
-        field('arms', commaLineSep1($.match_arm)),
+        field('arm', lineSep1($.match_arm)),
+        optional('\n'),
         '}',
       ),
 
     match_arm: ($) =>
       seq(
-        field('pattern', choice($.symbol, commaSep1($.literal))),
-        // optional(seq('if', field('guard', $._expression))),
+        field('pattern', commaSep1(choice($.symbol, $.literal))),
         '=>',
-        field('result', $._expression),
+        field('result', choice($._expression, $.block)),
       ),
 
     return_statement: ($) =>
@@ -751,7 +770,7 @@ module.exports = grammar({
         '{',
         optional(repeat('\n')),
         field(
-          'statements',
+          'statement',
           seq(optional(repeat($._statements)), optional($._statement_inline)),
         ),
         '}',
@@ -789,6 +808,9 @@ function commaSep1(rule) {
 
 function commaLineSep(rule) {
   return repeat(seq(rule, ',', optional('\n')));
+}
+function lineSep1(rule) {
+  return repeat1(seq(rule, choice('\n', ';')));
 }
 
 function commaLineSep1(rule) {
