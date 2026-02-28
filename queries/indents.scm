@@ -1,61 +1,49 @@
-; 代码块增加缩进
-(block) @indent.begin
+([
+  (block)
+  (group_expr)
+  (group_expr content: (_))
+  (params param: (_))
+  (params param: (_))
+  (function_call arg: (_))
+  (module_call_expr arg: (_))
+  (command_expr arg: (_))
+  (command_expr redirect: (_))
+  (chain_expr method: (_))
+  (conditional_expr true_expr: (_))
+  (conditional_expr false_expr: (_))
+  (catch_expr handler: (_))
+  (lambda_expr body: (_))
+  (logical_and_expr right: (_))
+  (logical_or_expr right: (_))
+  (pipe_expr right: (_))
+  (add_sub_expr right: (_))
+  (mul_div_expr right: (_))
+  (list element: (_))
+  (map entry: (_))
+  (namedmap entry: (_))
+  (sets element: (_))
+  ; "("
+  "["
+  "{"
+  ; (if_expr then_branch: (_))h
+  ; (if_expr else_branch: (_))
+  (match_expr arm: (_))
+] @indent @extend
+(#set! "scope" "tail"))
 
-; 集合类型增加缩进
-(list) @indent.begin
-(map) @indent.begin
-(namedmap) @indent.begin
-(sets) @indent.begin
+([
+  "}"
+  "]"
+  ; ")"
+] @outdent
+(#set! "scope" "all"))
 
-; 字符串模板增加缩进
-(string_template) @indent.begin
+((map_entry
+    key: (_) @key
+    value: (_) @val
+    (#not-same-line? @key @val)
+  ) @indent.always @extend
+)
 
-; 结束标记减少缩进
-[
-"}"
-"]"
-] @indent.end
-
-; block字句对齐
-(block
-statement: _) @indent.branch
-
-; 分支对齐
-(match_expr
-arm: (_) @indent.branch)
-
-; 参数列表对齐
-(params
-param: (_) @indent.align)
-
-(params
-var_collect: (_) @indent.align)
-
-; 函数调用参数对齐
-(function_call
-arg: (_) @indent.align)
-
-(chain_expr
-arguments: (_) @indent.align)
-
-; 条件表达式对齐
-(conditional_expr
-true_expr: (_) @indent.align
-false_expr: (_) @indent.align)
-
-; 管道表达式对齐
-(pipe_expr
-right: (_) @indent.align)
-
-; 模块调用对齐
-(module_call_expr
-arg: (_) @indent.align)
-
-; 忽略注释的缩进
-(comment) @indent.ignore
-
-; 多行结构的特殊处理
-(map_entry) @indent.branch
-
-; 装饰器不缩进
-(decorator) @indent.ignore
+; Match return statements to prevent extending
+(return_statement) @extend.prevent-once

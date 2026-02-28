@@ -101,8 +101,8 @@ arm: (_) @entry.inside)
 
 ; ---comment
 ; 注释
-(comment) @comment.around
 (comment) @comment.inside
+(comment)+ @comment.around
 
 ; 表达式分组
 ; (group_expr) @block.around
