@@ -768,7 +768,7 @@ module.exports = grammar({
 
     block: ($) =>
       seq(
-        '{',
+        choice('%{', '{'),
         optional(repeat('\n')),
         field(
           'statement',
