@@ -9,6 +9,8 @@
 "match"
 "return"
 "break"
+"continue"
+"shift"
 ] @keyword.control
 
 [
@@ -81,7 +83,7 @@
 [
 "|"
 "|>"
-; "<<"
+"<<"
 ">>"
 ">!"
 "|^"
@@ -96,6 +98,9 @@
 "?!"
 "?:"
 "?~"
+"&:"
+"_:"
+"_!"
 ] @operator.error
 
 ; Special operators

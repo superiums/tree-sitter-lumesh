@@ -35,8 +35,10 @@ target: (symbol) @local.definition
 value: _ @local.definition-value)
 
 (multi_assign
-target: (symbol) @local.definition
-value: _ @local.definition-value)
+  target: (symbol) @local.definition)
+
+(multi_assign
+  value: (_) @local.definition-value)
 
 ; 解构赋值中的变量定义
 (destruct_list

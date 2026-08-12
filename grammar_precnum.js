@@ -12,21 +12,11 @@ module.exports = grammar({
   word: ($) => $.symbol,
   extras: ($) => [/[ \t]/, /\\\n/, $.comment],
 
+  // 结构性歧义(共享前缀 token),必须交给 GLR 动态决策，不能靠数字优先级替代
   conflicts: ($) => [
-    // [$.chain_expr, $.function_call],
-    [$.lambda_params, $._primary_expr],
+    // [$.lambda_params, $._primary_expr],
     // [$._primary_expr, $.map_entry],
-    // [$.slice_expr, $.index_expr],
-    // [$.slice_expr, $.index_expr, $.command_argument],
-    // [$.index_expr, $.command_argument],
-    // [$.index_expr, $.chain_expr, $.command_argument],
-    // [$.add_sub_expr, $.command_argument],
-    // [$.control_flow, $._expression],
     // [$.map, $.block],
-    [$.map, $.map_entry],
-    [$.map],
-    // [$.command_expr, $.literal],
-    // after add index_expr to chain_expr
     // [$.command_expr, $._primary_expr],
     // [$.command_expr, $._expression],
     // [$.command_expr, $.literal],
@@ -35,74 +25,34 @@ module.exports = grammar({
     // [$.command_argument, $._expression],
   ],
 
-  precedences: ($) => [
-    [
-      $.control_flow,
-      $.command_argument,
-      $.command_expr,
-      $._primary_expr,
-      $._expression,
-    ],
-    [$.lambda_expr, $._primary_expr],
-    [$.match_arm, $._primary_expr],
-    // [$.map_entry, $._primary_expr],
-    [
-      $.group_expr,
-      // $.control_flow,
-      // $._primary_expr,
-      $.slice_expr,
-      $.index_expr,
-      $.unit_expr,
-      $.range_expr,
-      $.chain_expr,
-      $.property_expr,
-      $.function_call,
-      $.unary_expr,
-      $.power_expr,
-      $.mul_div_expr,
-      $.add_sub_expr,
-      $.comparison_expr,
-      $.logical_and_expr,
-      $.logical_or_expr,
-      $.conditional_expr,
-      // $.lambda_params,
-      $.lambda_expr,
-      $.catch_expr,
-      $.pipe_expr,
-      $.assign_expr,
-    ],
-  ],
+  // 注意：已删除原来的具名 precedences() 表 —— 因为语法里没有任何规则
+  // 调用 prec($.rule_name, ...) 引用这些符号，那张表对生成结果没有任何效力。
+  // 真正的运算符优先级改为下面各规则里的数字 prec.left(N,...)/prec.right(N,...)。
 
   rules: {
-    lumesh: ($) =>
-      seq(
-        optional(repeat('\n')),
-        repeat(seq($._statement, repeat1(choice(';', '\n')))),
-        optional($._statement),
-      ),
+    lumesh: ($) => seq(optional(repeat('\n')), repeat($._statements)),
 
-    _statement: ($) =>
-      choice(
-        $.declaration,
-        $.control_flow,
-        $.function_def,
-        $.use_statement,
-        $.alias_statement,
-        $.del_statement,
-        $.export_statement,
-        $.set_statement,
-        $._expression,
+    _statements: ($) =>
+      seq(
+        choice(
+          $.declaration,
+          $.control_flow,
+          $.function_def,
+          $.use_statement,
+          $.alias_statement,
+          $.del_statement,
+          $.export_statement,
+          $.set_statement,
+          $._expression,
+        ),
+        repeat(choice(';', '\n')),
       ),
 
     _expression: ($) =>
       choice(
-        // flow
         $.if_expr,
-        // $.while_expr,
         $.for_expr,
-        // $.loop_expr,
         $.match_expr,
-        // normal
         $.group_expr,
         $.chain_expr,
         $.property_expr,
@@ -135,7 +85,6 @@ module.exports = grammar({
         $.map,
         $.sets,
         $.block,
-        $.path_arg,
       ),
 
     group_expr: ($) => seq('(', field('content', $._expression), ')'),
@@ -143,28 +92,13 @@ module.exports = grammar({
     _postfix_expr: ($) =>
       choice($.slice_expr, $.index_expr, $.unit_expr, $.range_expr),
 
-    _indexable_expr: ($) =>
-      choice(
-        $.literal,
-        $.symbol,
-        $.variable,
-        $.list,
-        $.namedmap,
-        $.map,
-        $.sets,
-        $.group_expr,
-        $.chain_expr,
-        $.property_expr,
-        $.function_call,
-        $.index_expr,
-        $.slice_expr,
-        // 不包含 $.block、$.if_expr、$.while_expr 等以 block 收尾的控制流结构
-      ),
+    // ---- 数字越大，结合越紧密（优先被 shift/归约选中） ----
 
     slice_expr: ($) =>
       prec.left(
+        24,
         seq(
-          field('object', $._indexable_expr),
+          field('object', $._expression),
           token.immediate('['),
           optional(
             field('start', choice($.integer, $.symbol, $.variable, $.blank)),
@@ -182,20 +116,18 @@ module.exports = grammar({
 
     index_expr: ($) =>
       prec.left(
+        24,
         seq(
-          field('object', $._indexable_expr),
-          choice(
-            seq(token.immediate('['), field('index', $._expression), ']'),
-            // seq(token.immediate('@'), field('index', $._expression)),
-            // seq(token.immediate('.'), field('property', $.symbol)),
-          ),
+          field('object', $._expression),
+          seq(token.immediate('['), field('index', $._expression), ']'),
         ),
       ),
 
     property_expr: ($) =>
       prec.left(
+        24,
         seq(
-          field('object', choice($.symbol, $.variable, $.chain_expr)),
+          field('object', choice($.symbol, $.variable)),
           token.immediate('.'),
           field('property', $.symbol),
         ),
@@ -203,6 +135,7 @@ module.exports = grammar({
 
     chain_expr: ($) =>
       prec.left(
+        24,
         seq(
           field(
             'object',
@@ -212,16 +145,19 @@ module.exports = grammar({
               $.variable,
               $.index_expr,
               $.property_expr,
-              $.chain_expr,
             ),
           ),
           repeat1(
             seq(
               token.immediate('.'),
               field('method', $.symbol),
-              token.immediate('('),
-              field('arguments', optional(commaSep1($._expression))),
-              ')',
+              optional(
+                seq(
+                  token.immediate('('),
+                  field('arguments', optional(commaSep1($._expression))),
+                  ')',
+                ),
+              ),
             ),
           ),
         ),
@@ -229,6 +165,7 @@ module.exports = grammar({
 
     function_call: ($) =>
       prec.left(
+        24,
         seq(
           field('func', $.symbol),
           token.immediate('('),
@@ -245,18 +182,9 @@ module.exports = grammar({
         ),
       ),
 
-    // apply_expr: ($) =>
-    //   prec.left(
-    //     seq(
-    //       field('func', $._expression),
-    //       token.immediate('('),
-    //       field('arg', optional(commaSep1($._expression))),
-    //       ')',
-    //     ),
-    //   ),
-
     unit_expr: ($) =>
-      prec.right(
+      prec.left(
+        24,
         seq(
           field('value', choice($.integer, $.float)),
           field(
@@ -266,8 +194,48 @@ module.exports = grammar({
         ),
       ),
 
+    unary_expr: ($) =>
+      prec.right(
+        20,
+        seq(
+          token(field('operator', choice('!', '-'))),
+          field('operand', $._expression),
+        ),
+      ),
+
+    power_expr: ($) =>
+      prec.right(
+        22,
+        seq(
+          field('base', $._expression),
+          field('operator', '^'),
+          field('exponent', $._expression),
+        ),
+      ),
+
+    mul_div_expr: ($) =>
+      prec.left(
+        18,
+        seq(
+          field('left', $._expression),
+          field('operator', choice('*', '/', '%')),
+          field('right', $._expression),
+        ),
+      ),
+
+    add_sub_expr: ($) =>
+      prec.left(
+        16,
+        seq(
+          field('left', $._expression),
+          field('operator', choice('+', '-')),
+          field('right', $._expression),
+        ),
+      ),
+
     range_expr: ($) =>
       prec.left(
+        15,
         seq(
           field('start', choice($.integer, $.symbol, $.variable, $.blank)),
           field(
@@ -281,61 +249,11 @@ module.exports = grammar({
         ),
       ),
 
-    unary_expr: ($) =>
-      prec.right(
-        seq(
-          token(field('operator', choice('!', '-'))),
-          field(
-            'operand',
-            choice(
-              $.variable,
-              $.symbol,
-              $.group_expr,
-              $.literal,
-              $.chain_expr,
-              $.property_expr,
-              $.function_call,
-              $.index_expr,
-              $.slice_expr,
-            ),
-          ),
-        ),
-      ),
-
-    power_expr: ($) =>
-      prec.left(
-        seq(
-          field('base', $._expression),
-          field('operator', '^'),
-          field('exponent', $._expression),
-        ),
-      ),
-
-    mul_div_expr: ($) =>
-      prec.left(
-        seq(
-          field('left', $._expression),
-          field('operator', choice('*', '/', '%')),
-          field('right', $._expression),
-        ),
-      ),
-
-    add_sub_expr: ($) =>
-      prec.left(
-        seq(
-          field('left', $._expression),
-          field('operator', choice('+', '-')),
-          field('right', $._expression),
-        ),
-      ),
-
     command_expr: ($) =>
       prec.left(
+        14,
         seq(
-          field(
-            'cmd',
-            choice($.symbol, $.variable, $.property_expr, $.path_arg),
-          ),
+          field('cmd', choice($.symbol, $.property_expr, $.path_arg)),
           field('arg', repeat1($.command_argument)),
           field('redirect', optional($.stdout_ctrl)),
         ),
@@ -343,9 +261,9 @@ module.exports = grammar({
 
     command_argument: ($) =>
       prec.left(
+        34,
         choice(
           $.slash_arg,
-          // $._primary_expr,
           $.literal,
           $.symbol,
           $.symbol_raw,
@@ -353,37 +271,23 @@ module.exports = grammar({
           $.list,
           $.namedmap,
           $.sets,
-          // other
           $.group_expr,
           $.path_arg,
-          // $.unary_expr,
           $.dot_arg,
           $.chain_expr,
           $.property_expr,
           $.function_call,
         ),
       ),
+
     comparison_expr: ($) =>
       prec.left(
+        12,
         seq(
           field('left', $._expression),
           field(
             'operator',
-            choice(
-              '===',
-              '!==',
-              '==',
-              '!=',
-              '>',
-              '<',
-              '>=',
-              '<=',
-              // '~~',
-              // '~=',
-              '~:',
-              // '!~~',
-              '!~:',
-            ),
+            choice('===', '!==', '==', '!=', '>', '<', '>=', '<=', '~:', '!~:'),
           ),
           field('right', $._expression),
         ),
@@ -391,6 +295,7 @@ module.exports = grammar({
 
     logical_and_expr: ($) =>
       prec.left(
+        10,
         seq(
           field('left', $._expression),
           field('operator', '&&'),
@@ -400,6 +305,7 @@ module.exports = grammar({
 
     logical_or_expr: ($) =>
       prec.left(
+        8,
         seq(
           field('left', $._expression),
           field('operator', '||'),
@@ -409,6 +315,7 @@ module.exports = grammar({
 
     conditional_expr: ($) =>
       prec.right(
+        6,
         seq(
           field('condition', $._expression),
           '?',
@@ -420,6 +327,7 @@ module.exports = grammar({
 
     lambda_expr: ($) =>
       prec.right(
+        5,
         seq(
           choice(field('param', $.symbol), $.lambda_params),
           '->',
@@ -428,17 +336,18 @@ module.exports = grammar({
       ),
 
     lambda_params: ($) =>
-      seq('(', optional(commaSep1(field('param', $.symbol))), ')'),
+      prec(6, seq('(', optional(commaSep1(field('param', $.symbol))), ')')),
 
     catch_expr: ($) =>
       prec.left(
+        4,
         seq(
           field('try', $._expression),
           choice(
             field('catcher', choice('?.', '?+', '??', '?>', '?!', '?~', '_!')),
             seq(
               field('catcher', choice('?:', '&:', '_:')),
-              field('handler', $._expression),
+              field('handler', prec.right(2, $._expression)),
             ),
           ),
         ),
@@ -446,44 +355,25 @@ module.exports = grammar({
 
     pipe_expr: ($) =>
       prec.left(
+        3,
         seq(
           field('left', $._expression),
           field('operator', choice('|', '|>', '|^', '<<', '>>', '>!')),
-          field('right', choice($.pipe_method_expr, $._expression)),
-        ),
-      ),
-
-    pipe_method_expr: ($) =>
-      seq(
-        token.immediate(' .'),
-        field('method', $.symbol),
-        token.immediate('('),
-        field('arg', optional(commaSep1($._expression))),
-        ')',
-      ),
-
-    module_call_expr: ($) =>
-      prec.left(
-        seq(
-          field('module', sepBy1('::', $.symbol)),
-          '::',
-          field('func', $.symbol),
-          token.immediate('('),
-          field('arg', optional(commaSep1($._expression))),
-          ')',
+          field('right', $._expression),
         ),
       ),
 
     assign_expr: ($) =>
       prec.right(
+        1,
         seq(
           field('target', $.symbol),
-          field('operator', choice('=', '+=', '-=', '*=', '/=')),
+          choice(':=', '='),
           field('value', $._expression),
         ),
       ),
 
-    // quote_expr: ($) => seq("'", field('content', $._expression), "'"),
+    // ---- literal / token 层规则:与运算符优先级无关,保持不变 ----
 
     literal: ($) =>
       choice(
@@ -492,18 +382,318 @@ module.exports = grammar({
         $.string,
         $.string_raw,
         $.string_safe,
-        $.string_raw_hash,
+        $.bytes,
         $.string_regex,
         $.string_time,
+        $.string_raw_hash,
         $.string_template,
-        $.bytes,
-        // $.path_arg,
         $.boolean,
         $.none,
-        $.blank,
         $.file_size_literal,
       ),
 
+    // symbol / variable / blank
+    symbol: ($) => token(/[a-zA-Z_][a-zA-Z0-9_\-]*/),
+    symbol_raw: ($) => seq($.symbol, token.immediate('^')),
+    variable: ($) => seq('$', field('name', $.symbol)),
+    blank: ($) => '_',
+
+    list: ($) =>
+      seq(
+        '[',
+        optional('\n'),
+        field('element', commaLineSep($._expression)),
+        optional(field('element', $._expression)),
+        ']',
+      ),
+
+    map: ($) =>
+      prec.left(
+        2,
+        seq(
+          '{',
+          optional('\n'),
+          choice(
+            seq(',', optional('\n')),
+            field('entry', seq($.map_entry, ',', optional('\n'))),
+            seq(
+              field('entry', commaLineSep1($.map_entry)),
+              optional(field('entry', seq($.map_entry, optional('\n')))),
+            ),
+          ),
+          '}',
+        ),
+      ),
+
+    namedmap: ($) =>
+      seq(
+        choice('H{', 'M{'),
+        optional('\n'),
+        field('entry', commaLineSep($.map_entry)),
+        optional(field('entry', $.map_entry)),
+        '}',
+      ),
+
+    sets: ($) =>
+      seq(
+        'S{',
+        optional('\n'),
+        field('element', optional(commaLineSep1($._expression))),
+        optional(field('element', $._expression)),
+        '}',
+      ),
+
+    map_entry: ($) =>
+      choice(
+        seq(
+          field('key', choice($.symbol, $.string, $.string_raw)),
+          ':',
+          optional('\n'),
+          field('value', $._expression),
+        ),
+        field('key', $.symbol),
+      ),
+
+    params: ($) =>
+      seq(
+        '(',
+        optional('\n'),
+        seq(
+          commaLineSep(
+            seq(
+              field('param', $.symbol),
+              optional(seq('=', field('default', $.literal))),
+            ),
+          ),
+          optional(
+            seq(
+              field('param', $.symbol),
+              optional(seq('=', field('default', $.literal))),
+            ),
+          ),
+        ),
+        optional('\n'),
+        optional(seq(',', '*', field('var_collect', $.symbol))),
+        optional('\n'),
+        ')',
+      ),
+
+    path_arg: ($) =>
+      token(
+        choice(
+          /\/[^\s;\)\]\}]*/,
+          /\.\.\/[^\s;\)\]\}]*/,
+          /\.\/[^\s;\)\]\}]*/,
+          /~\/[^\s;\)\]\}]*/,
+          /\*\/[^\s;\)\]\}]*/,
+          /\*\*\/[^\s;\)\]\}]*/,
+          /\*\.[^\s;\)\]\}]*/,
+          /https?:\/\/[^\s;\)\]\}]*/,
+          /ftps?:\/\/[^\s;\)\]\}]*/,
+          /file:\/\/[^\s;\)\]\}]*/,
+        ),
+      ),
+
+    slash_arg: ($) =>
+      choice(
+        seq('-', token.immediate(/[a-zA-Z0-9]/)),
+        seq(
+          '--',
+          token.immediate(
+            seq(/[a-zA-Z][a-zA-Z0-9-]*/, optional(seq('=', /[^\s;)\]}]*/))),
+          ),
+        ),
+      ),
+
+    dot_arg: ($) => token('.'),
+
+    stdout_ctrl: ($) =>
+      field('operator', token(choice('&', '&-', '&+', '&?', '&.'))),
+
+    declaration: ($) =>
+      seq(
+        'let',
+        choice(
+          $.normal_assign,
+          $.multi_assign,
+          $.destruct_list,
+          $.destruct_map,
+        ),
+      ),
+
+    normal_assign: ($) =>
+      seq(
+        field('target', $.symbol),
+        choice(':=', '='),
+        field('value', $._expression),
+      ),
+
+    multi_assign: ($) =>
+      seq(
+        field('targets', commaSep2(field('target', $.symbol))),
+        '=',
+        field('value', $._expression),
+      ),
+
+    destruct_list: ($) =>
+      seq(
+        '[',
+        field(
+          'target',
+          commaSep1(choice($.symbol, seq('*', field('rest', $.symbol)))),
+        ),
+        ']',
+        '=',
+        field('value', $._expression),
+      ),
+
+    destruct_map: ($) =>
+      seq(
+        '{',
+        field(
+          'target',
+          commaSep1(
+            choice(
+              $.symbol,
+              seq(field('key', $.symbol), ':', field('alias', $.symbol)),
+            ),
+          ),
+        ),
+        '}',
+        '=',
+        field('value', $._expression),
+      ),
+
+    control_flow: ($) =>
+      prec.right(
+        2,
+        choice(
+          $.if_expr,
+          $.while_expr,
+          $.for_expr,
+          $.loop_expr,
+          $.match_expr,
+          $.return_statement,
+          $.break_statement,
+          $.continue_statement,
+          $.shift_statement,
+        ),
+      ),
+
+    if_expr: ($) =>
+      seq(
+        'if',
+        field('condition', $._expression),
+        field('then_branch', $.block),
+        optional(
+          seq(
+            'else',
+            field('else_branch', prec.right(2, choice($.block, $.if_expr))),
+          ),
+        ),
+      ),
+
+    while_expr: ($) =>
+      seq('while', field('condition', $._expression), field('body', $.block)),
+
+    for_expr: ($) =>
+      seq(
+        'for',
+        optional(seq(field('index', $.symbol), ',')),
+        field('variable', $.symbol),
+        'in',
+        field('iterable', $._expression),
+        field('body', $.block),
+      ),
+
+    loop_expr: ($) => seq('loop', field('body', $.block)),
+
+    match_expr: ($) =>
+      seq(
+        'match',
+        field('value', $._expression),
+        '{',
+        optional('\n'),
+        field('arm', lineSep1($.match_arm)),
+        optional('\n'),
+        '}',
+      ),
+
+    match_arm: ($) =>
+      prec.right(
+        2,
+        seq(
+          field('pattern', commaSep1(choice($.symbol, $.literal))),
+          '=>',
+          field('result', choice($._expression, $.block)),
+        ),
+      ),
+
+    return_statement: ($) =>
+      prec.right(seq('return', field('value', optional($._expression)))),
+    break_statement: ($) =>
+      prec.right(seq('break', field('value', optional($._expression)))),
+    continue_statement: ($) => prec.right('continue'),
+    shift_statement: ($) => prec.right('shift'),
+
+    function_def: ($) =>
+      seq(
+        repeat(field('decorator', $.decorator)),
+        'fn',
+        field('name', $.symbol),
+        field('params', $.params),
+        field('body', $.block),
+        optional(
+          choice(
+            field('catcher', choice('?.', '?+', '??', '?>', '?!', '?~', '_!')),
+            seq(
+              field('catcher', choice('?:', '&:', '_:')),
+              field('handler', prec.right(2, $._expression)),
+            ),
+          ),
+        ),
+      ),
+
+    decorator: ($) =>
+      seq(
+        '@',
+        field('name', $.symbol),
+        optional(seq('(', field('args', commaSep1($._expression)), ')')),
+      ),
+
+    block: ($) =>
+      seq(
+        choice('%{', '{'),
+        optional(repeat('\n')),
+        field('statement', seq(optional(repeat($._statements)))),
+        '}',
+      ),
+
+    use_statement: ($) =>
+      seq(
+        'use',
+        field('module', choice($.string_raw, $.string, $.symbol, $.path_arg)),
+        optional(seq('as', field('alias', $.symbol))),
+      ),
+
+    alias_statement: ($) =>
+      seq('alias', field('name', $.symbol), '=', field('value', $._expression)),
+
+    del_statement: ($) => seq('del', field('target', $.symbol)),
+
+    export_statement: ($) =>
+      seq(
+        'export',
+        field('name', $.symbol),
+        optional(seq('=', field('value', $._expression))),
+      ),
+
+    set_statement: ($) =>
+      seq('set', field('name', $.symbol), '=', field('value', $._expression)),
+
+    comment: ($) => token(seq('#', /.*/)),
+
+    // ----------basic--------
     file_size_literal: ($) =>
       seq(
         field('value', choice($.integer, $.float)),
@@ -589,382 +779,15 @@ module.exports = grammar({
 
     boolean: ($) => choice('true', 'false'),
     none: ($) => 'none',
-
-    symbol: ($) => token(/[a-zA-Z_][a-zA-Z0-9_\-]*/), // ~?&#$@/\\
-    symbol_raw: ($) => seq($.symbol, token.immediate('^')),
-    variable: ($) => seq('$', field('name', $.symbol)),
-    // var_sym: ($) => seq(optional('$'), field('name', $.symbol)),
-    blank: ($) => '_',
-
-    list: ($) =>
+    module_call_expr: ($) =>
       seq(
-        '[',
-        optional('\n'),
-        field('element', commaLineSep($._expression)),
-        optional(field('element', $._expression)),
-        // optional(seq(',', optional('\n'))),
-        ']',
-      ),
-
-    // map_entry: ($) =>
-    //   choice(
-    //     seq(
-    //       field('key', choice($.symbol, $.string, $.string_raw)),
-    //       ':',
-    //       optional('\n'),
-    //       field('value', $._expression),
-    //     ),
-    //     field('kv', $.symbol), // 裸key简写
-    //   ),
-
-    map: ($) =>
-      seq(
-        '{',
-        optional(repeat('\n')),
-        choice(
-          seq(',', optional(repeat('\n'))), // 空map: {,}
-
-          // 情形A：只有一个entry，且是"带冒号"形式 —— 逗号可省
-          seq(field('entry', $.map_kv_entry), optional(',')),
-
-          // 情形B：一个entry后面跟至少一次"逗号+entry" —— 覆盖：
-          //   - 多个entry（不管起手是colon还是裸key）
-          //   - 单个裸key但强制带逗号（此时 repeat1 至少循环0次也没关系，
-          //     因为下面单独用 optional(',') 处理"只有裸key+逗号、没有更多entry"的情况）
-          seq(
-            field('entry', $.map_entry),
-            repeat1(
-              seq(',', optional(repeat('\n')), field('entry', $.map_entry)),
-            ),
-            optional(','),
-          ),
-        ),
-        optional(repeat('\n')),
-        '}',
-      ),
-
-    map_kv_entry: ($) =>
-      seq(
-        field('key', choice($.symbol, $.string, $.string_raw)),
-        ':',
-        optional('\n'),
-        field('value', $._expression),
-      ),
-
-    map_kv_bare: ($) => field('kv', $.symbol),
-
-    map_entry: ($) => choice($.map_kv_entry, $.map_kv_bare),
-
-    namedmap: ($) =>
-      seq(
-        choice('H{', 'M{'),
-        optional('\n'),
-        field('entry', commaLineSep($.map_entry)),
-        optional(field('entry', $.map_entry)),
-        optional('\n'),
-        '}',
-      ),
-
-    sets: ($) =>
-      seq(
-        'S{',
-        optional('\n'),
-        field('element', optional(commaLineSep1($._expression))),
-        optional(field('element', $._expression)),
-        optional('\n'),
-        '}',
-      ),
-
-    params: ($) =>
-      seq(
-        '(',
-        optional('\n'),
-        seq(
-          // 有逗号形参，0-n个
-          commaLineSep(
-            seq(
-              field('param', $.symbol),
-              optional(seq('=', field('default', $.literal))),
-            ),
-          ),
-          // 允许无逗号形参，1个
-          optional(
-            seq(
-              field('param', $.symbol),
-              optional(seq('=', field('default', $.literal))),
-            ),
-          ),
-        ),
-        optional('\n'),
-        // 剩余参数收集
-        optional(seq(',', '*', field('var_collect', $.symbol))),
-        optional('\n'),
+        field('module', sepBy1('::', $.symbol)),
+        '::',
+        field('func', $.symbol),
+        token.immediate('('),
+        field('arg', optional(commaSep1($._expression))),
         ')',
       ),
-
-    // path遇到空白、括号和分号终止
-    path_arg: ($) =>
-      token(
-        choice(
-          /\/[^\s;\)\]\}]*/,
-          /\.\.\/[^\s;\)\]\}]*/,
-          /\.\/[^\s;\)\]\}]*/,
-          /~\/[^\s;\)\]\}]*/,
-          /\*\/[^\s;\)\]\}]*/,
-          /\*\*\/[^\s;\)\]\}]*/,
-          /\*\.[^\s;\)\]\}]*/,
-          /https?:\/\/[^\s;\)\]\}]*/,
-          /ftps?:\/\/[^\s;\)\]\}]*/,
-          /file:\/\/[^\s;\)\]\}]*/,
-        ),
-      ),
-    slash_arg: ($) =>
-      choice(
-        token(prec(10, seq('-', token.immediate(/[a-zA-Z0-9]/)))),
-        seq(
-          '--',
-          token.immediate(
-            seq(/[a-zA-Z][a-zA-Z0-9-]*/, optional(seq('=', /[^\s;)\]}]*/))),
-          ),
-        ),
-        token('--'),
-      ),
-
-    dot_arg: ($) => token('.'),
-    stdout_ctrl: ($) =>
-      field('operator', token(choice('&', '&-', '&+', '&?', '&.'))),
-
-    declaration: ($) =>
-      seq(
-        'let',
-        choice(
-          $.normal_assign,
-          $.multi_assign,
-          $.destruct_list,
-          $.destruct_map,
-        ),
-      ),
-
-    normal_assign: ($) =>
-      seq(
-        field('target', $.symbol),
-        choice(':=', '='),
-        field('value', $._expression),
-      ),
-
-    multi_assign: ($) =>
-      seq(
-        field('targets', commaSep2(field('target', $.symbol))),
-        '=',
-        field('value', $._expression),
-      ),
-
-    destruct_list: ($) =>
-      seq(
-        '[',
-        field(
-          'target',
-          commaSep1(choice($.symbol, seq('*', field('rest', $.symbol)))),
-        ),
-        ']',
-        '=',
-        field('value', $._expression),
-      ),
-
-    destruct_map: ($) =>
-      seq(
-        '{',
-        field(
-          'target',
-          commaSep1(
-            choice(
-              $.symbol,
-              seq(field('key', $.symbol), ':', field('alias', $.symbol)),
-            ),
-          ),
-        ),
-        '}',
-        '=',
-        field('value', $._expression),
-      ),
-
-    control_flow: ($) =>
-      choice(
-        $.if_expr,
-        $.for_expr,
-        $.match_expr,
-        $.loop_expr,
-        $.while_expr,
-        $.return_statement,
-        $.break_statement,
-        $.continue_statement,
-        $.shift_statement,
-      ),
-
-    if_expr: ($) =>
-      seq(
-        'if',
-        field(
-          'condition',
-          choice(
-            $.group_expr,
-            $.chain_expr,
-            $.property_expr,
-            $.function_call,
-            $.module_call_expr,
-            $._postfix_expr,
-            $.unary_expr, // only simple
-            $.power_expr,
-            $.mul_div_expr,
-            $.add_sub_expr,
-            $.command_expr,
-            $.comparison_expr,
-            $.logical_and_expr,
-            $.logical_or_expr,
-            $.conditional_expr,
-            // $.lambda_expr,
-            $.catch_expr,
-            $.pipe_expr,
-            // $.assign_expr,
-            // $._primary_expr,
-            $.literal,
-            $.symbol,
-            $.variable,
-          ),
-        ),
-        field('then_branch', $.block),
-        optional(seq('else', field('else_branch', choice($.block, $.if_expr)))),
-      ),
-
-    // _condition: ($) =>
-    //   choice(
-    //     $.property_expr,
-    //     $.group_expr,
-    //     $.function_call,
-    //     $._postfix_expr,
-    //     $.unary_expr,
-    //     $.power_expr,
-    //     $.mul_div_expr,
-    //     $.add_sub_expr,
-    //     $.comparison_expr,
-    //     $.logical_and_expr,
-    //     $.logical_or_expr,
-    //     $.conditional_expr,
-    //     $._primary_expr,
-    //   ),
-
-    while_expr: ($) =>
-      seq('while', field('condition', $._expression), field('body', $.block)),
-
-    for_expr: ($) =>
-      seq(
-        'for',
-        optional(seq(field('index', $.symbol), ',')),
-        field('variable', $.symbol),
-        'in',
-        field('iterable', $._expression),
-        field('body', $.block),
-      ),
-
-    loop_expr: ($) => seq('loop', field('body', $.block)),
-
-    match_expr: ($) =>
-      seq(
-        'match',
-        field('value', $._expression),
-        '{',
-        optional('\n'),
-        field('arm', lineSep1($.match_arm)),
-        optional('\n'),
-        '}',
-      ),
-
-    match_arm: ($) =>
-      seq(
-        field('pattern', commaSep1(choice($.symbol, $.literal))),
-        '=>',
-        field('result', choice($._expression, $.block)),
-      ),
-
-    return_statement: ($) =>
-      prec.right(seq('return', field('value', optional($._expression)))),
-
-    break_statement: ($) =>
-      prec.right(seq('break', field('value', optional($._expression)))),
-    continue_statement: ($) => 'continue',
-    shift_statement: ($) => 'shift',
-
-    function_def: ($) =>
-      seq(
-        repeat(field('decorator', $.decorator)),
-        'fn',
-        field('name', $.symbol),
-        field('params', $.params),
-        field('body', $.block),
-        optional(
-          choice(
-            field('catcher', choice('?.', '?+', '??', '?>', '?!', '?~', '_!')),
-            seq(
-              field('catcher', choice('?:', '&:', '_:')),
-              field(
-                'handler',
-                choice(
-                  $.symbol,
-                  $.variable,
-                  $.literal,
-                  $.group_expr,
-                  $.chain_expr,
-                  $.property_expr,
-                  $.function_call,
-                  $.module_call_expr,
-                  // $.command_expr,
-                  $.lambda_expr,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-
-    decorator: ($) =>
-      seq(
-        '@',
-        field('name', $.symbol),
-        optional(seq('(', field('args', commaSep1($._expression)), ')')),
-      ),
-
-    block: ($) =>
-      seq(
-        choice('%{', '{'),
-        optional(repeat('\n')),
-        repeat(seq($._statement, repeat1(choice(';', '\n')))),
-        optional(field('statement', $._statement)),
-        '}',
-      ),
-
-    use_statement: ($) =>
-      seq(
-        'use',
-        field('module', choice($.string_raw, $.string, $.symbol, $.path_arg)),
-        optional(seq('as', field('alias', $.symbol))),
-      ),
-
-    alias_statement: ($) =>
-      seq('alias', field('name', $.symbol), '=', field('value', $._expression)),
-
-    del_statement: ($) => seq('del', field('target', $.symbol)),
-
-    export_statement: ($) =>
-      seq(
-        'export',
-        field('name', $.symbol),
-        optional(seq('=', field('value', $._expression))),
-      ),
-
-    set_statement: ($) =>
-      seq('set', field('name', $.symbol), '=', field('value', $._expression)),
-
-    comment: ($) => token(seq('#', /.*/)),
   },
 });
 
@@ -974,14 +797,12 @@ function commaSep1(rule) {
 function commaSep2(rule) {
   return seq(rule, repeat1(seq(',', rule)));
 }
-
 function commaLineSep(rule) {
   return repeat(seq(rule, ',', optional('\n')));
 }
 function lineSep1(rule) {
   return repeat1(seq(rule, choice('\n', ';')));
 }
-
 function commaLineSep1(rule) {
   return repeat1(seq(rule, ',', optional('\n')));
 }
