@@ -38,7 +38,7 @@
 ] @outdent
 (#set! "scope" "all"))
 
-((map_entry
+((map_kv_entry
     key: (_) @key
     value: (_) @val
     (#not-same-line? @key @val)

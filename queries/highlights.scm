@@ -9,8 +9,8 @@
 "match"
 "return"
 "break"
-"continue"
-"shift"
+(continue_statement)
+(shift_statement)
 ] @keyword.control
 
 [
@@ -201,8 +201,14 @@ variable: (symbol) @variable.parameter.loop)
 index: (symbol) @variable.parameter.loop)
 
 ; Property access
-(map_entry
-key: _ @variable.other.member)
+(map_kv_entry
+  key: (symbol) @variable.other.member)
+
+(map_kv_entry
+  key: (string) @variable.other.member)
+
+(map_kv_bare
+  kv: (symbol) @variable.other.member)
 
 (property_expr
 property: (symbol) @attribute)

@@ -891,8 +891,8 @@ module.exports = grammar({
 
     break_statement: ($) =>
       prec.right(seq('break', field('value', optional($._expression)))),
-    continue_statement: ($) => 'continue',
-    shift_statement: ($) => 'shift',
+    continue_statement: ($) => token('continue'),
+    shift_statement: ($) => token('shift'),
 
     function_def: ($) =>
       seq(

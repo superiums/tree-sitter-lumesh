@@ -4439,12 +4439,18 @@
       }
     },
     "continue_statement": {
-      "type": "STRING",
-      "value": "continue"
+      "type": "TOKEN",
+      "content": {
+        "type": "STRING",
+        "value": "continue"
+      }
     },
     "shift_statement": {
-      "type": "STRING",
-      "value": "shift"
+      "type": "TOKEN",
+      "content": {
+        "type": "STRING",
+        "value": "shift"
+      }
     },
     "function_def": {
       "type": "SEQ",
